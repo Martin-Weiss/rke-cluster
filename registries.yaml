@@ -1,0 +1,17 @@
+mirrors:
+  docker.io:
+    endpoint:
+      - "https://%%REGISTRY%%/rke-%%STAGE%%/docker.io"
+  quay.io:
+    endpoint:
+      - "https://%%REGISTRY%%/rke-%%STAGE%%/quay.io"
+  gcr.io:
+    endpoint:
+      - "https://%%REGISTRY%%/rke-%%STAGE%%/gcr.io"
+configs:
+  "%%REGISTRY%%":
+    auth:
+      username: %%USERNAME%% # this is the registry username
+      password: %%PASSWORD%% # this is the registry password
+    tls:
+      ca_file: /etc/ssl/ca-bundle.pem

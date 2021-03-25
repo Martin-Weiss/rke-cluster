@@ -1,0 +1,13 @@
+{
+        "auths": {
+                "https://%%REGISTRY%%": {
+                        "auth": "%%CREDS%%"
+                },
+                "%%REGISTRY%%": {
+                        "auth": "%%CREDS%%"
+                }
+        },
+        "HttpHeaders": {
+                "User-Agent": "Docker-Client/19.03.1 (linux)"
+        }
+}

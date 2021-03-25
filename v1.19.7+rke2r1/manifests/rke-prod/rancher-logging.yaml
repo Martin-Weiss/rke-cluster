@@ -1,0 +1,60 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cattle-logging-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: rancher-logging-fluent-psp-role
+  namespace: cattle-logging-system
+rules:
+- apiGroups:
+  - policy
+  resourceNames:
+  - system-unrestricted-psp
+  resources:
+  - podsecuritypolicies
+  verbs:
+  - use
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: rancher-logging-fluent-psp-binding
+  namespace: cattle-logging-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: rancher-logging-fluent-psp-role
+subjects:
+- kind: ServiceAccount
+  name: rancher-logging-fluentd
+  namespace: cattle-logging-system
+- kind: ServiceAccount
+  name: rancher-logging-fluentbit
+  namespace: cattle-logging-system
+---
+apiVersion: helm.cattle.io/v1
+kind: HelmChart
+metadata:
+  name: rancher-logging
+  namespace: kube-system
+spec:
+  jobImage: registry01.suse:5000/rke-prod/docker.io/rancher/klipper-helm:v0.4.3
+  chart: https://rke-prod.suse:9345/static/charts/rancher-logging-v3.8.201.tgz
+  targetNamespace: cattle-logging-system
+  valuesContent: |-
+    global:
+      cattle:
+        systemDefaultRegistry: "registry01.suse:5000/rke-prod/docker.io"
+    rbac:
+      psp:
+        enabled: true
+    podSecurityContext:
+      runAsNonRoot: true
+      runAsUser: 1000
+      fsGroup: 2000
+    fluentbit_tolerations:
+      - key: CriticalAddonsOnly
+        operator: Exists

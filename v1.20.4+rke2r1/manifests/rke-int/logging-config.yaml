@@ -1,0 +1,60 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cattle-logging-system
+---
+apiVersion: v1
+items:
+- apiVersion: logging.banzaicloud.io/v1beta1
+  kind: ClusterOutput
+  metadata:
+    name: syslog01.suse
+    namespace: cattle-logging-system
+  spec:
+    syslog:
+      buffer:
+        flush_interval: 5s
+        timekey: 30s
+        timekey_use_utc: true
+        timekey_wait: 10s
+      format:
+        type: json
+      host: syslog01.suse
+      insecure: true
+      port: 514
+      transport: tcp
+kind: List
+---
+apiVersion: v1
+items:
+- apiVersion: logging.banzaicloud.io/v1beta1
+  kind: ClusterFlow
+  metadata:
+    name: syslog01.suse
+    namespace: cattle-logging-system
+  spec:
+    globalOutputRefs:
+    - syslog01.suse
+kind: List
+---
+apiVersion: v1
+items:
+- apiVersion: logging.banzaicloud.io/v1beta1
+  kind: Output
+  metadata:
+    name: syslog01.suse
+    namespace: cattle-logging-system
+  spec:
+    syslog:
+      buffer:
+        flush_interval: 5s
+        timekey: 30s
+        timekey_use_utc: true
+        timekey_wait: 10s
+      format:
+        type: json
+      host: syslog01.suse
+      insecure: true
+      port: 514
+      transport: tcp
+kind: List

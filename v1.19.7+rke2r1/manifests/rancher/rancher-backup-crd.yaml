@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cattle-resources-system
+---
+apiVersion: helm.cattle.io/v1
+kind: HelmChart
+metadata:
+  name: rancher-backup-crd
+  namespace: kube-system
+spec:
+  jobImage: registry01.suse:5000/rke-prod/docker.io/rancher/klipper-helm:v0.4.3
+  chart: https://rancher.suse:9345/static/charts/rancher-backup-crd-v1.0.3.tgz
+  targetNamespace: cattle-resources-system
+  valuesContent: |-
+    global:
+      cattle:
+        systemDefaultRegistry: "registry01.suse:5000/rke-prod/docker.io"
