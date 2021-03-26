@@ -9,7 +9,7 @@ metadata:
   name: rancher-backup
   namespace: kube-system
 spec:
-  jobImage: registry01.suse:5000/rke-prod/docker.io/rancher/klipper-helm:v0.4.3
+  jobImage: registry01.suse:5000/rke-prod/docker.io/rancher/klipper-helm:v0.4.3-build20210225
   chart: https://rancher.suse:9345/static/charts/rancher-backup-v1.0.3.tgz
   targetNamespace: cattle-resources-system
   valuesContent: |-

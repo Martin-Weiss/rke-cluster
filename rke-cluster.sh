@@ -260,8 +260,11 @@ function _AGENT_PREPARE {
 	# this should also be part of the RPM
 	sudo bash -c 'cat << EOF > /etc/profile.local
 export CRI_CONFIG_FILE=/var/lib/rancher/rke2/agent/etc/crictl.yaml
-export PATH=$PATH:/var/lib/rancher/rke2/bin
+export PATH=\$PATH:/var/lib/rancher/rke2/bin
 EOF'
+        # export already during initial deployment as profile.local is not executed in current session
+        export CRI_CONFIG_FILE=/var/lib/rancher/rke2/agent/etc/crictl.yaml
+        export PATH=$PATH:/var/lib/rancher/rke2/bin
 }
 
 function _COPY_MANIFESTS_AND_CHARTS {
@@ -277,6 +280,20 @@ function _COPY_MANIFESTS_AND_CHARTS {
 
 }
 
+function _FIX_1_20_4_DEPLOYMENT {
+	# change in system-default-registry does not allow namespace anymore
+	sudo sed -i "s/^system-default-registry:.*/system-default-registry: $REGISTRY/g" /etc/rancher/rke2/config.yaml
+	# due to missing namespacee support for initial images have to use tarball
+	sudo mkdir -p /var/lib/rancher/rke2/agent/images 
+	sudo cp -av /home/rkeadmin/rke-cluster/v1.20.4+rke2r1/rke2-images.linux-amd64.tar.zst /var/lib/rancher/rke2/agent/images
+	if grep airgap-extra-registry /etc/rancher/rke2/config.yaml && [ $WORKER == "0" ]; then
+		echo "airgap-extra-registry already set or we are on a master"
+	else
+		echo "adding airgap-extra-registry as workaround for not setting proper image tags on workers"
+		sudo bash -c "echo airgap-extra-registry: $REGISTRY >> /etc/rancher/rke2/config.yaml"
+	fi
+}
+
 function _ADJUST_CLUSTER_IDENTITY {
 		# replace placeholders in config.yaml template
                 sudo sed -i "s/%%CLUSTER%%/$CLUSTER/g" /etc/rancher/rke2/config.yaml
@@ -284,11 +301,18 @@ function _ADJUST_CLUSTER_IDENTITY {
                 sudo sed -i "s/%%REGISTRY%%/$REGISTRY/g" /etc/rancher/rke2/config.yaml
         	sudo sed -i "s/%%STAGE%%/$STAGE/g" /etc/rancher/rke2/config.yaml
                 sudo sed -i "s/%%CLUSTER%%/$CLUSTER/g" /etc/rancher/rke2/vsphere.conf
+		# have to adopt 1.20.4 workaround before starting the cluster
+		if [ "$RKE2_VERSION" == "v1.20.4+rke2r1" ]; then
+			_FIX_1_20_4_DEPLOYMENT
+		fi
 }
 
 function _JOIN_CLUSTER {
         if hostname|grep master-01; then
                 echo "We are on the first master"
+		FIRSTMASTER=1
+		MASTER=1
+		WORKER=0
                 _PREPARE_RKE2_SERVER_CONFIG
                 _PREPARE_RKE2_CLOUD_CONFIG
 		_COPY_MANIFESTS_AND_CHARTS
@@ -300,6 +324,9 @@ function _JOIN_CLUSTER {
 		echo "Verify with:  sudo journalctl -u rke2-server -f"
 	elif hostname |grep master; then
                 echo "We are on a secondary master"
+		FIRSTMASTER=0
+		MASTER=1
+		WORKER=0
                 _PREPARE_RKE2_SERVER_CONFIG
                 _PREPARE_RKE2_CLOUD_CONFIG
 		_COPY_MANIFESTS_AND_CHARTS
@@ -310,6 +337,9 @@ function _JOIN_CLUSTER {
 		echo "Verify with:  sudo journalctl -u rke2-server -f"
         elif hostname |grep worker; then
                 echo "We are on a worker"
+		FIRSTMASTER=0
+		MASTER=0
+		WORKER=1
                 _PREPARE_RKE2_AGENT_CONFIG
                 _PREPARE_RKE2_CLOUD_CONFIG
 		_ADJUST_CLUSTER_IDENTITY
