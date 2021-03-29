@@ -10,10 +10,11 @@ metadata:
   namespace: kube-system
 spec:
   jobImage: registry01.suse:5000/rke-prod/docker.io/rancher/klipper-helm:v0.4.3-build20210225
-  chart: https://rancher.suse:9345/static/charts/rancher-v2.5.5.tgz
+  chart: https://rancher.suse:9345/static/charts/rancher-v2.5.7.tgz
   targetNamespace: cattle-system
   valuesContent: |-
     busyboxImage: registry01.suse:5000/rke-prod/docker.io/busybox
     hostname: rancher.suse
     rancherImage: registry01.suse:5000/rke-prod/docker.io/rancher/rancher
     systemDefaultRegistry: "registry01.suse:5000/rke-prod/docker.io"
+    useBundledSystemChart: true

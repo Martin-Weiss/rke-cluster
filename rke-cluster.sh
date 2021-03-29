@@ -64,6 +64,7 @@ function _DETECT_CLUSTER {
 		USERNAME=$TEST_USERNAME
 		PASSWORD=$TEST_PASSWORD
 		CREDS=$TEST_CREDS
+		#RKE2_VERSION="v1.19.7+rke2r1"
 		RKE2_VERSION="v1.20.4+rke2r1"
         elif hostname|grep int; then
                 CLUSTER="rke-int"
