@@ -1045,7 +1045,7 @@ spec:
         accessModes:
         - ReadWriteOnce
         enabled: true
-        size: 10G
+        size: 1G
         storageClassName: longhorn
         subPath: null
         type: statefulset
@@ -2228,7 +2228,7 @@ spec:
     
         ## Maximum size of metrics
         ##
-        retentionSize: "50GiB"
+        retentionSize: "4GiB"
     
         ## Enable compression of the write-ahead log using Snappy.
         ##
@@ -2321,7 +2321,7 @@ spec:
              accessModes: ["ReadWriteOnce"]
              resources:
                requests:
-                 storage: 50Gi
+                 storage: 5Gi
         #    selector: {}
     
         ## AdditionalScrapeConfigs allows specifying additional Prometheus scrape configurations. Scrape configurations

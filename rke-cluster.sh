@@ -58,6 +58,7 @@ function _DETECT_CLUSTER {
 		PASSWORD=$RANCHER_PASSWORD
 		CREDS=$RANCHER_CREDS
 		RKE2_VERSION="v1.19.7+rke2r1"
+		#RKE2_VERSION="v1.20.4+rke2r1"
         elif hostname|grep test; then
                 CLUSTER="rke-test"
                 STAGE="test"
@@ -73,6 +74,7 @@ function _DETECT_CLUSTER {
 		PASSWORD=$INT_PASSWORD
 		CREDS=$INT_CREDS
 		RKE2_VERSION="v1.19.7+rke2r1"
+		#RKE2_VERSION="v1.20.4+rke2r1"
         elif hostname|grep prod; then
                 CLUSTER="rke-prod"
                 STAGE="prod"
@@ -80,6 +82,7 @@ function _DETECT_CLUSTER {
 		PASSWORD=$PROD_PASSWORD
 		CREDS=$PROD_CREDS
 		RKE2_VERSION="v1.19.7+rke2r1"
+		#RKE2_VERSION="v1.20.4+rke2r1"
         fi
 	echo CLUSTER is $CLUSTER
 	echo STAGE is $STAGE
