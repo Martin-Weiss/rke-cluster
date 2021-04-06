@@ -286,13 +286,13 @@ function _COPY_MANIFESTS_AND_CHARTS {
 
 }
 
-function _FIX_1_20_4_DEPLOYMENT {
+function _FIX_1_20_DEPLOYMENT {
 	# change in system-default-registry does not allow namespace anymore
 	sudo sed -i "s/^system-default-registry:.*/system-default-registry: $REGISTRY/g" /etc/rancher/rke2/config.yaml
 	# due to missing namespacee support for initial images have to use tarball
 	sudo mkdir -p /var/lib/rancher/rke2/agent/images 
-	sudo cp -av /home/rkeadmin/rke-cluster/v1.20.4+rke2r1/rke2-images.linux-amd64.tar.zst /var/lib/rancher/rke2/agent/images
-	if grep airgap-extra-registry /etc/rancher/rke2/config.yaml && [ $WORKER == "0" ]; then
+	sudo cp -av /home/rkeadmin/rke-cluster/$RKE2_VERSION/rke2-images.linux-amd64.tar.zst /var/lib/rancher/rke2/agent/images
+	if grep airgap-extra-registry /etc/rancher/rke2/config.yaml || [ $WORKER == "0" ]; then
 		echo "airgap-extra-registry already set or we are on a master"
 	else
 		echo "adding airgap-extra-registry as workaround for not setting proper image tags on workers"
@@ -308,8 +308,8 @@ function _ADJUST_CLUSTER_IDENTITY {
         	sudo sed -i "s/%%STAGE%%/$STAGE/g" /etc/rancher/rke2/config.yaml
                 sudo sed -i "s/%%CLUSTER%%/$CLUSTER/g" /etc/rancher/rke2/vsphere.conf
 		# have to adopt 1.20.4 workaround before starting the cluster
-		if [ "$RKE2_VERSION" == "v1.20.4+rke2r1" ]; then
-			_FIX_1_20_4_DEPLOYMENT
+		if [ "$RKE2_VERSION" == "v1.20.4+rke2r1" ] || [ "$RKE2_VERSION" == "v1.20.5+rke2r1" ]; then
+			_FIX_1_20_DEPLOYMENT
 		fi
 }
 

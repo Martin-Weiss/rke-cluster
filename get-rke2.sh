@@ -4,8 +4,17 @@ for RKE2_VERSION in $RKE2_VERSIONS; do
 	mkdir -p $RKE2_VERSION
 	wget -N "https://github.com/rancher/rke2/releases/download/$RKE2_VERSION/rke2.linux-amd64.tar.gz" -O $RKE2_VERSION/rke2.linux-amd64.tar.gz
 done
+
+# Logcolector
 wget -N "https://raw.githubusercontent.com/rancherlabs/support-tools/master/collection/rancher/v2.x/logs-collector/rancher2_logs_collector.sh"
 chmod +x rancher2_logs_collector.sh
 
 # 1.20 workaround
-	wget -N "https://github.com/rancher/rke2/releases/download/v1.20.4+rke2r1/rke2-images.linux-amd64.tar.zst" -O v1.20.4+rke2r1/rke2-images.linux-amd64.tar.zst
+RKE2_VERSIONS="v1.20.4+rke2r1 v1.20.5+rke2r1"
+for RKE2_VERSION in $RKE2_VERSIONS; do
+	mkdir -p $RKE2_VERSION
+	wget -N "https://github.com/rancher/rke2/releases/download/$RKE2_VERSION/rke2-images.linux-amd64.tar.zst" -O $RKE2_VERSION/rke2-images.linux-amd64.tar.zst
+	echo "rke2.linux-amd64.tar.gz" > $RKE2_VERSION/.gitignore
+        echo "rke2-images.linux-amd64.tar.zst" >> $RKE2_VERSION/.gitignore
+        echo "rke2-images.linux-amd64.tar.gz" >> $RKE2_VERSION/.gitignore
+done
