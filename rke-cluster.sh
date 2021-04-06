@@ -25,6 +25,8 @@
 
 # define the default rke2 version to be used
 RKE2_VERSION="v1.19.7+rke2r1"
+#RKE2_VERSION="v1.20.4+rke2r1"
+#RKE2_VERSION="v1.20.5+rke2r1"
 
 # get the dns domain of the server
 DOMAIN=$(/usr/bin/hostname -d)
@@ -66,7 +68,7 @@ function _DETECT_CLUSTER {
 		PASSWORD=$TEST_PASSWORD
 		CREDS=$TEST_CREDS
 		#RKE2_VERSION="v1.19.7+rke2r1"
-		RKE2_VERSION="v1.20.4+rke2r1"
+		RKE2_VERSION="v1.20.5+rke2r1"
         elif hostname|grep int; then
                 CLUSTER="rke-int"
                 STAGE="int"
