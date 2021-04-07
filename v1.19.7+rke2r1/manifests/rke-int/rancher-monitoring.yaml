@@ -10,7 +10,7 @@ metadata:
   namespace: kube-system
 spec:
   jobImage: registry01.suse:5000/rke-int/docker.io/rancher/klipper-helm:v0.4.3
-  chart: https://rke-int.suse:9345/static/charts/rancher-monitoring-v9.4.202.tgz
+  chart: https://rke-int.suse:9345/static/charts/rancher-monitoring-v9.4.203.tgz
   targetNamespace: cattle-monitoring-system
   valuesContent: |-
     # Default values for kube-prometheus-stack.

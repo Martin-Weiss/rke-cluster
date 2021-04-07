@@ -10,7 +10,7 @@ metadata:
   namespace: kube-system
 spec:
   jobImage: registry01.suse:5000/rke-int/docker.io/rancher/klipper-helm:v0.4.3-build20210225
-  chart: https://rke-int.suse:9345/static/charts/longhorn-v1.1.0.tgz
+  chart: https://rke-int.suse:9345/static/charts/longhorn-v1.1.001.tgz
   targetNamespace: longhorn-system
   valuesContent: |-
     # Default values for longhorn.

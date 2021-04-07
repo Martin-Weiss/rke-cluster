@@ -42,7 +42,7 @@ metadata:
   namespace: kube-system
 spec:
   jobImage: registry01.suse:5000/rke-prod/docker.io/rancher/klipper-helm:v0.4.3-build20210225
-  chart: https://rke-prod.suse:9345/static/charts/rancher-logging-v3.8.201.tgz
+  chart: https://rke-prod.suse:9345/static/charts/rancher-logging-v3.9.000.tgz
   targetNamespace: cattle-logging-system
   valuesContent: |-
     global:
