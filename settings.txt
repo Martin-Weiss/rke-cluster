@@ -1,0 +1,8 @@
+# clusterfiledir
+RKECLUSTERDIR=/home/rkeadmin/rke-cluster
+# on premise registry to be used (https will always be used)
+REGISTRY="registry01.suse:5000"
+# server.txt
+SERVERTXT="/home/rkeadmin/rke-cluster/server.txt"
+# rancher cluster name
+RANCHERCLUSTER="rancher"

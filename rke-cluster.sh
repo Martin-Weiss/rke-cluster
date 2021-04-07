@@ -2,6 +2,8 @@
 #
 ######################################################
 # v0.1 25.03.2021 Martin Weiss - Martin.Weiss@suse.com
+# v0.2 07.04.2021 Martin Weiss - Martin.Weiss@suse.com
+#          	  - added server.txt and settings.txt
 #
 # this script is used to create and upgrade rke2
 # clusters
@@ -12,7 +14,6 @@
 # Open ToDo
 # ------------------------------
 # 
-# - move variables in setting.txt
 # - manage kubeconfig with rights
 # - allow rkeadmin to manage cri / crictl
 # - add a detection on secondary masters to wait until join is possible
@@ -23,70 +24,24 @@
 # Variables
 # ------------------------------
 
-# define the default rke2 version to be used
-RKE2_VERSION="v1.19.7+rke2r1"
-#RKE2_VERSION="v1.20.4+rke2r1"
-#RKE2_VERSION="v1.20.5+rke2r1"
+SCRIPTPATH="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
+SETTINGS=$SCRIPTPATH/settings.txt
+source $SETTINGS
 
-# get the dns domain of the server
-DOMAIN=$(/usr/bin/hostname -d)
-
-# on premise registry to be used (https will always be used)
-REGISTRY="registry01.suse:5000"
-
-# registry credentials - required for registry authentication in containerd
-# use one bot user per cluster
-RANCHER_USERNAME="rancher-cluster"
-RANCHER_PASSWORD="6t2n-NtR5DeWCfCwBkrV"
-PROD_USERNAME="rke-prod-cluster"
-PROD_PASSWORD="omE-NsRgyuxLs8h-quKZ"
-INT_USERNAME="rke-int-cluster"
-INT_PASSWORD="F8RBf8NtmMqearESeZ43"
-TEST_USERNAME="rke-test-cluster"
-TEST_PASSWORD="_Ey4sYq1wAyBUSfjcsQY"
-
-# registry credentials for docker login in v1.19.7+rke2r1
-PROD_CREDS="$(echo -n $PROD_USERNAME:$PROD_PASSWORD|base64)"
-RANCHER_CREDS="$(echo -n $RANCHER_USERNAME:$RANCHER_PASSWORD|base64)"
-INT_CREDS="$(echo -n $INT_USERNAME:$INT_PASSWORD|base64)"
-TEST_CREDS="$(echo -n $TEST_USERNAME:$TEST_PASSWORD|base64)"
+######################################################
 
 # detect cluster and set version
 function _DETECT_CLUSTER {
-        if hostname|grep rancher; then
-                CLUSTER="rancher"
-                STAGE="prod"
-		USERNAME=$RANCHER_USERNAME
-		PASSWORD=$RANCHER_PASSWORD
-		CREDS=$RANCHER_CREDS
-		RKE2_VERSION="v1.19.7+rke2r1"
-		#RKE2_VERSION="v1.20.4+rke2r1"
-        elif hostname|grep test; then
-                CLUSTER="rke-test"
-                STAGE="test"
-		USERNAME=$TEST_USERNAME
-		PASSWORD=$TEST_PASSWORD
-		CREDS=$TEST_CREDS
-		#RKE2_VERSION="v1.19.7+rke2r1"
-		RKE2_VERSION="v1.20.5+rke2r1"
-        elif hostname|grep int; then
-                CLUSTER="rke-int"
-                STAGE="int"
-		USERNAME=$INT_USERNAME
-		PASSWORD=$INT_PASSWORD
-		CREDS=$INT_CREDS
-		RKE2_VERSION="v1.19.7+rke2r1"
-		#RKE2_VERSION="v1.20.4+rke2r1"
-        elif hostname|grep prod; then
-                CLUSTER="rke-prod"
-                STAGE="prod"
-		USERNAME=$PROD_USERNAME
-		PASSWORD=$PROD_PASSWORD
-		CREDS=$PROD_CREDS
-		RKE2_VERSION="v1.19.7+rke2r1"
-		#RKE2_VERSION="v1.20.4+rke2r1"
-        fi
+	DOMAIN="$(grep $(hostname) $SERVERTXT|cut -f2 -d ",")"
+	RKE2_VERSION="$(grep $(hostname) $SERVERTXT|cut -f3 -d ",")"
+        STAGE="$(grep $(hostname) $SERVERTXT|cut -f4 -d ",")"
+        CLUSTER="$(grep $(hostname) $SERVERTXT|cut -f5 -d ",")"
+        NODETYPE="$(grep $(hostname) $SERVERTXT|cut -f6 -d ",")"
+	USERNAME="$(grep $(hostname) $SERVERTXT|cut -f7 -d ",")"
+	PASSWORD="$(grep $(hostname) $SERVERTXT|cut -f8 -d ",")"
+	CREDS="$(echo -n $USERNAME:$PASSWORD|base64)"
 	echo CLUSTER is $CLUSTER
+	echo NODETYPE is $NODETYPE
 	echo STAGE is $STAGE
 	echo RKE2_VERSION is $RKE2_VERSION
 }
@@ -97,9 +52,15 @@ function _INSTALL_RKE2 {
 	# hoping to replace this with an RPM for SLES 15 SP2, soon
 	echo "Install RKE2 from Tarball"
 	# this part should be part of the SUSE RPM for RKE2 once we have it
-	sudo tar xzvf /home/rkeadmin/rke-cluster/$RKE2_VERSION/rke2.linux-amd64.tar.gz -C /usr/local 2>&1 >/dev/null;
+	sudo tar xzvf $RKECLUSTERDIR/$RKE2_VERSION/rke2.linux-amd64.tar.gz -C /usr/local 2>&1 >/dev/null;
 	# for security based on rke2 docs
-	sudo useradd -r -c "etcd user" -s /sbin/nologin -M etcd 2>&1 >/dev/null
+	# probably etcd user is only required on master?
+	if [ $NODETYPE == "master1" ] || [ $NODETYPE == "master" ] ; then
+		echo "creating etcd user on a master node"
+		sudo useradd -r -c "etcd user" -s /sbin/nologin -M etcd 2>&1 >/dev/null
+	else
+		echo "not creating etcd user as we are not on a master node"
+	fi
 	sudo cp -f /usr/local/share/rke2/rke2-cis-sysctl.conf /etc/sysctl.d/60-rke2-cis.conf
 	sudo systemctl restart systemd-sysctl 2>&1 >/dev/null
 	# copy systemd unit files to etc due to "reboot not starting the service in case /usr/local is not part of the root filesystem"
@@ -132,14 +93,14 @@ cloud-provider-config: /etc/rancher/rke2/vsphere.conf
 private-registry: /etc/rancher/rke2/registries.yaml
 agent-token: %%CLUSTER%%-token-asfebwadg
 token: %%CLUSTER%%-token-asfebwadg
-system-default-registry: %%REGISTRY%%/rke-%%STAGE%%/docker.io
+system-default-registry: %%REGISTRY%%/%%STAGE%%/docker.io
 profile: cis-1.5
 tls-san:
   - "%%CLUSTER%%.%%DOMAIN%%"
 node-label:
   - "cluster=%%CLUSTER%%"
 EOF'
-	if ! [ $CLUSTER == "rancher" ]; then
+	if ! [ $CLUSTER == "$RANCHERCLUSTER" ]; then
 		echo "Add node-taint NoExecute on master because we have workers"
 		sudo bash -c 'cat << EOF >> /etc/rancher/rke2/config.yaml
 node-taint:
@@ -157,7 +118,7 @@ cloud-provider-name: vsphere
 cloud-provider-config: /etc/rancher/rke2/vsphere.conf
 private-registry: /etc/rancher/rke2/registries.yaml
 token: %%CLUSTER%%-token-asfebwadg
-system-default-registry: %%REGISTRY%%/rke-%%STAGE%%/docker.io
+system-default-registry: %%REGISTRY%%/%%STAGE%%/docker.io
 server: https://%%CLUSTER%%.%%DOMAIN%%:9345
 profile: cis-1.5
 node-label:
@@ -201,7 +162,7 @@ function _PREPARE_REGISTRIES_YAML {
 	# required for registry mapping (missing namespace mapping feature compared to crio!!)
 	# required for global registry authentication for the cluster
 	echo "Prepare Registries YAML"
-	sudo cp /home/rkeadmin/rke-cluster/registries.yaml /etc/rancher/rke2/
+	sudo cp $RKECLUSTERDIR/registries.yaml /etc/rancher/rke2/
         sudo sed -i "s/%%STAGE%%/$STAGE/g" /etc/rancher/rke2/registries.yaml
         sudo sed -i "s/%%USERNAME%%/$USERNAME/g" /etc/rancher/rke2/registries.yaml
         sudo sed -i "s/%%PASSWORD%%/$PASSWORD/g" /etc/rancher/rke2/registries.yaml
@@ -212,7 +173,7 @@ function _PREPARE_DOCKER_CREDENTIALS {
 	# for v1.19.7+rke2r1 to pull the base images with authentication from on-premise registry
 	echo "Prepare Docker Credentials"
 	sudo mkdir -p /root/.docker
-	sudo cp /home/rkeadmin/rke-cluster/config.json /root/.docker/config.json
+	sudo cp $RKECLUSTERDIR/config.json /root/.docker/config.json
         sudo sed -i "s/%%REGISTRY%%/$REGISTRY/g" /root/.docker/config.json
 	sudo sed -i "s/%%CREDS%%/$CREDS/g" /root/.docker/config.json
 }
@@ -248,10 +209,12 @@ EOF'
 		sleep 1
 	done
 	mkdir -p /home/rkeadmin/.kube
-	ln -s /etc/rancher/rke2/rke2.yaml /home/rkeadmin/.kube/config 2>&1 >/dev/null
+	if [ ! -f /home/rkeadmin/.kube/config ]; then
+		ln -s /etc/rancher/rke2/rke2.yaml /home/rkeadmin/.kube/config 2>&1 >/dev/null
+	fi
 	sudo chown rkeadmin:users /home/rkeadmin/.kube
 	sudo mkdir -p /root/.kube
-	sudo ln -s /etc/rancher/rke2/rke2.yaml /root/.kube/config 2>&1 >/dev/null
+	sudo bash -c "if [ ! -f /root/.kube/config ]; then ln -s /etc/rancher/rke2/rke2.yaml /root/.kube/config 2>&1 >/dev/null; fi"
 	# give rkeadmin group access to kubeconfig
 	sudo chgrp rkeadmin /etc/rancher/rke2/rke2.yaml
 	# export already during initial deployment as profile.local is not executed in current session
@@ -281,8 +244,8 @@ function _COPY_MANIFESTS_AND_CHARTS {
 		# during upgrades we might deliver "other" charts - depending on dependencies and upgrade procedures
 		sudo mkdir -p /var/lib/rancher/rke2/server/manifests
 		sudo mkdir -p /var/lib/rancher/rke2/server/static/charts
-		sudo rsync -a --delete /home/rkeadmin/rke-cluster/$RKE2_VERSION/static/charts/$CLUSTER/* /var/lib/rancher/rke2/server/static/charts
-		sudo rsync -a --delete /home/rkeadmin/rke-cluster/$RKE2_VERSION/manifests/$CLUSTER/* /var/lib/rancher/rke2/server/manifests
+		sudo rsync -a --delete $RKECLUSTERDIR/$RKE2_VERSION/static/charts/$CLUSTER/* /var/lib/rancher/rke2/server/static/charts
+		sudo rsync -a --delete $RKECLUSTERDIR/$RKE2_VERSION/manifests/$CLUSTER/* /var/lib/rancher/rke2/server/manifests
 
 }
 
@@ -291,7 +254,7 @@ function _FIX_1_20_DEPLOYMENT {
 	sudo sed -i "s/^system-default-registry:.*/system-default-registry: $REGISTRY/g" /etc/rancher/rke2/config.yaml
 	# due to missing namespacee support for initial images have to use tarball
 	sudo mkdir -p /var/lib/rancher/rke2/agent/images 
-	sudo cp -av /home/rkeadmin/rke-cluster/$RKE2_VERSION/rke2-images.linux-amd64.tar.zst /var/lib/rancher/rke2/agent/images
+	sudo cp -av $RKECLUSTERDIR/$RKE2_VERSION/rke2-images.linux-amd64.tar.zst /var/lib/rancher/rke2/agent/images
 	if grep airgap-extra-registry /etc/rancher/rke2/config.yaml || [ $WORKER == "0" ]; then
 		echo "airgap-extra-registry already set or we are on a master"
 	else
@@ -314,7 +277,7 @@ function _ADJUST_CLUSTER_IDENTITY {
 }
 
 function _JOIN_CLUSTER {
-        if hostname|grep master-01; then
+        if [ $NODETYPE == "master1" ] ; then
                 echo "We are on the first master"
 		FIRSTMASTER=1
 		MASTER=1
@@ -328,7 +291,7 @@ function _JOIN_CLUSTER {
                 sudo systemctl restart rke2-server.service 2>&1 >/dev/null;
                 _ADMIN_PREPARE
 		echo "Verify with:  sudo journalctl -u rke2-server -f"
-	elif hostname |grep master; then
+	elif [ $NODETYPE == "master" ] ; then
                 echo "We are on a secondary master"
 		FIRSTMASTER=0
 		MASTER=1
@@ -341,7 +304,7 @@ function _JOIN_CLUSTER {
                 sudo systemctl restart rke2-server.service 2>&1 >/dev/null;
                 _ADMIN_PREPARE
 		echo "Verify with:  sudo journalctl -u rke2-server -f"
-        elif hostname |grep worker; then
+        elif [ $NODETYPE == "worker" ] ; then
                 echo "We are on a worker"
 		FIRSTMASTER=0
 		MASTER=0
