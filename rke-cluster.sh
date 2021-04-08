@@ -72,11 +72,15 @@ function _INSTALL_RKE2 {
 	# create target dir for configs of rke2
 	sudo mkdir -p /etc/rancher/rke2
 	# workaround in v1.19.7+rke2r1 for authentication for base images from on-premise registry with authentication
+	# in case the registry does not have a SAN in the SSL certificate GODEBUG=x509ignoreCN=0 needs to be added to the environment
+	# configure in /etc/default/rke2-server and /etc/default/rke2-agent or in /etc/sysconfig/rke2-server and /etc/sysconfig/rke2-agent
 	sudo bash -c 'cat << EOF > /etc/default/rke2-server
 HOME=/root
+GODEBUG=x509ignoreCN=0
 EOF'
 	sudo bash -c 'cat << EOF > /etc/default/rke2-agent
 HOME=/root
+GODEBUG=x509ignoreCN=0
 EOF'
 }
 
