@@ -80,7 +80,7 @@ spec:
       snapshotterReplicaCount: ~
     
     defaultSettings:
-      backupTarget: s3://rke-prod@de-nrw-1/
+      backupTarget: s3://rke-prod@de-bw-1/
       backupTargetCredentialSecret: longhorn-backup-minio-secret
       allowRecurringJobWhileVolumeDetached: ~
       createDefaultDiskLabeledNodes: ~
