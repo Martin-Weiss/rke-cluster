@@ -39,6 +39,8 @@ spec:
         subPath: null
         type: statefulset
     prometheus:
+      prometheusSpec:
+        retentionSize: 4GiB
         storageSpec:
          volumeClaimTemplate:
            spec:
@@ -47,3 +49,11 @@ spec:
              resources:
                requests:
                  storage: 5Gi
+    rke2ControllerManager:
+      enabled: true
+    rke2Etcd:
+      enabled: true
+    rke2Proxy:
+      enabled: true
+    rke2Scheduler:
+      enabled: true
