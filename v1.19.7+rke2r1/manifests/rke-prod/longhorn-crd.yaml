@@ -9,6 +9,6 @@ metadata:
   name: longhorn-crd
   namespace: kube-system
 spec:
-  jobImage: registry01.suse:5000/rke-test/docker.io/rancher/klipper-helm:v0.4.3
-  chart: https://rke-test.suse:9345/static/charts/longhorn-crd-v1.1.001.tgz
+  jobImage: registry01.suse:5000/rke-prod/docker.io/rancher/klipper-helm:v0.4.3
+  chart: https://rke-prod.suse:9345/static/charts/longhorn-crd-v1.1.001.tgz
   targetNamespace: longhorn-system

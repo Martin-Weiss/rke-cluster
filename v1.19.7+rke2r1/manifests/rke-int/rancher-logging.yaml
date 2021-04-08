@@ -48,6 +48,9 @@ spec:
     global:
       cattle:
         systemDefaultRegistry: "registry01.suse:5000/rke-int/docker.io"
+    additionalLoggingSources:
+      rke2:
+        enabled: false
     rbac:
       psp:
         enabled: true
@@ -55,6 +58,11 @@ spec:
       runAsNonRoot: true
       runAsUser: 1000
       fsGroup: 2000
+    fluentbit:
+      tolerations:
+        - effect: NoExecute
+          key: CriticalAddonsOnly
+          value: "true"
     fluentbit_tolerations:
       - key: CriticalAddonsOnly
         operator: Exists

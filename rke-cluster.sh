@@ -4,6 +4,8 @@
 # v0.1 25.03.2021 Martin Weiss - Martin.Weiss@suse.com
 # v0.2 07.04.2021 Martin Weiss - Martin.Weiss@suse.com
 #          	  - added server.txt and settings.txt
+# v0.3 08.04.2021 Martin Weiss - Martin.Weiss@suse.com
+#		  - added custom CA
 #
 # this script is used to create and upgrade rke2
 # clusters
@@ -15,7 +17,7 @@
 # ------------------------------
 # 
 # - manage kubeconfig with rights
-# - allow rkeadmin to manage cri / crictl
+# - allow $RKEUSER to manage cri / crictl
 # - add a detection on secondary masters to wait until join is possible
 #
 ######################################################
@@ -202,21 +204,21 @@ EOF'
 	sudo chmod 644 /usr/share/bash-completion/completions/kubectl
 	sudo chmod 644 /usr/share/bash-completion/completions/helm
 	# kube config
-	# prepare kubeconfig for user root and rkeadmin in case environment is not set
+	# prepare kubeconfig for user root and $RKEUSER in case environment is not set
 	# have to wait until kubeconfig is created by rke2-server service
 	while [ ! -f /etc/rancher/rke2/rke2.yaml ]; do
 		echo "waiting on /etc/rancher/rke2/rke2.yaml to be available"
 		sleep 1
 	done
-	mkdir -p /home/rkeadmin/.kube
-	if [ ! -f /home/rkeadmin/.kube/config ]; then
-		ln -s /etc/rancher/rke2/rke2.yaml /home/rkeadmin/.kube/config 2>&1 >/dev/null
+	mkdir -p /home/$RKEUSER/.kube
+	if [ ! -f /home/$RKEUSER/.kube/config ]; then
+		ln -s /etc/rancher/rke2/rke2.yaml /home/$RKEUSER/.kube/config 2>&1 >/dev/null
 	fi
-	sudo chown rkeadmin:users /home/rkeadmin/.kube
+	sudo chown $RKEUSER:users /home/$RKEUSER/.kube
 	sudo mkdir -p /root/.kube
 	sudo bash -c "if [ ! -f /root/.kube/config ]; then ln -s /etc/rancher/rke2/rke2.yaml /root/.kube/config 2>&1 >/dev/null; fi"
-	# give rkeadmin group access to kubeconfig
-	sudo chgrp rkeadmin /etc/rancher/rke2/rke2.yaml
+	# give $RKEUSER group access to kubeconfig
+	sudo chgrp $RKEUSER /etc/rancher/rke2/rke2.yaml
 	# export already during initial deployment as profile.local is not executed in current session
 	export KUBECONFIG=/etc/rancher/rke2/rke2.yaml
 	export CRI_CONFIG_FILE=/var/lib/rancher/rke2/agent/etc/crictl.yaml
@@ -276,6 +278,21 @@ function _ADJUST_CLUSTER_IDENTITY {
 		fi
 }
 
+function _CONFIGURE_CUSTOM_CA {
+	# server-ca.crt and key need to be copied only if not exist in target and if exist in source
+	# only required on first master as others get it via registration against 9345
+	sudo mkdir -p /var/lib/rancher/rke2/server/tls
+	sudo bash -c "if [ -f $CA_CRT ] && [ -f $CA_KEY ] && [ ! -f /var/lib/rancher/rke2/server/tls/server-ca.crt ] && [ ! -f /var/lib/rancher/rke2/server/tls/server-ca.key ]; then
+		echo 'custom CA exists and target CA does not exist - so copy custom one'
+		sudo cp -av $CA_CRT /var/lib/rancher/rke2/server/tls/server-ca.crt
+		sudo cp -av $CA_KEY /var/lib/rancher/rke2/server/tls/server-ca.key
+		chmod 644 /var/lib/rancher/rke2/server/tls/server-ca.crt
+		chmod 600 /var/lib/rancher/rke2/server/tls/server-ca.key
+	else
+		echo 'no custom CA exists or target CA already there - do not copy CA'
+	fi"
+}
+
 function _JOIN_CLUSTER {
         if [ $NODETYPE == "master1" ] ; then
                 echo "We are on the first master"
@@ -286,6 +303,7 @@ function _JOIN_CLUSTER {
                 _PREPARE_RKE2_CLOUD_CONFIG
 		_COPY_MANIFESTS_AND_CHARTS
 		_ADJUST_CLUSTER_IDENTITY
+		_CONFIGURE_CUSTOM_CA
                 sudo sed -i "/^server/d" /etc/rancher/rke2/config.yaml
                 sudo systemctl enable rke2-server.service 2>&1 >/dev/null;
                 sudo systemctl restart rke2-server.service 2>&1 >/dev/null;
