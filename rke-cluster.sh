@@ -69,6 +69,8 @@ function _INSTALL_RKE2 {
 	sudo cp /usr/local/lib/systemd/system/rke2-agent.service /etc/systemd/system/rke2-agent.service
 	sudo cp /usr/local/lib/systemd/system/rke2-server.service /etc/systemd/system/rke2-server.service
 	sudo systemctl daemon-reload;
+	# ensure firewalld is stopped and disabled as this is not compatible with canal
+	sudo systemctl disable --now firewalld;
 	# create target dir for configs of rke2
 	sudo mkdir -p /etc/rancher/rke2
 	# workaround in v1.19.7+rke2r1 for authentication for base images from on-premise registry with authentication
