@@ -189,7 +189,10 @@ function _PREPARE_DOCKER_CREDENTIALS {
 function _ADMIN_PREPARE {
 	echo "Prepare Admin Tools"
 	# take helm3 from caasp 4.5 channels - needs to be replaced with helm3 delivery from "somewhere else"
-	sudo zypper -n in helm3
+	#  sudo zypper -n in helm3
+	# use helm from binary
+	sudo zypper -n rm helm3
+	sudo bash -c "if [ -f $RKECLUSTERDIR/helm-cli/helm ]; then cp $RKECLUSTERDIR/helm-cli/helm /usr/local/bin; chmod +x /usr/local/bin/helm; fi"
 	# profile settings for kubeconfig, crictl and binaries
 	# also hope that this will be part of the RPM
 	sudo bash -c 'cat << EOF > /etc/profile.local
@@ -205,8 +208,15 @@ EOF'
 		echo "waiting on /var/lib/rancher/rke2/bin/kubectl to be available"
 		sleep 1
 	done
+	# adding cert-manager kubectl extension
+	sudo bash -c "if [ -f $RKECLUSTERDIR/cert-manager-cli/kubectl-cert_manager ]; then cp $RKECLUSTERDIR/cert-manager-cli/kubectl-cert_manager /usr/local/bin; chmod +x /usr/local/bin/kubectl-cert_manager; fi"
+	# bash completion for kubectl and helm
 	sudo bash -c '/var/lib/rancher/rke2/bin/kubectl completion bash > /usr/share/bash-completion/completions/kubectl'
-	sudo bash -c '/usr/bin/helm completion bash > /usr/share/bash-completion/completions/helm'
+	# rme based helm
+	#  sudo bash -c '/usr/bin/helm completion bash > /usr/share/bash-completion/completions/helm'
+	# helm from binary
+	sudo bash -c '/usr/local/bin/helm completion bash > /usr/share/bash-completion/completions/helm'
+	# set rights for bash-completion
 	sudo chmod 644 /usr/share/bash-completion/completions/kubectl
 	sudo chmod 644 /usr/share/bash-completion/completions/helm
 	# kube config
