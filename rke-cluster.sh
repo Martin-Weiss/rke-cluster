@@ -281,6 +281,13 @@ function _FIX_1_20_DEPLOYMENT {
 	fi
 }
 
+function _FIX_1_20_5_R2 {
+	# this version should have working registry rewrite
+	# removing system-default-registry!
+	sudo sed -i "/^system-default-registry:.*/d" /etc/rancher/rke2/config.yaml
+	# todo: remove rancher system-default registry when on rancher cluster, too!
+}
+
 function _ADJUST_CLUSTER_IDENTITY {
 		# replace placeholders in config.yaml template
                 sudo sed -i "s/%%CLUSTER%%/$CLUSTER/g" /etc/rancher/rke2/config.yaml
@@ -291,6 +298,9 @@ function _ADJUST_CLUSTER_IDENTITY {
 		# have to adopt 1.20.4 workaround before starting the cluster
 		if [ "$RKE2_VERSION" == "v1.20.4+rke2r1" ] || [ "$RKE2_VERSION" == "v1.20.5+rke2r1" ]; then
 			_FIX_1_20_DEPLOYMENT
+		fi
+		if [ "$RKE2_VERSION" == "v1.20.5-alpha1+rke2r2" ] ; then
+			_FIX_1_20_5_R2		
 		fi
 }
 
