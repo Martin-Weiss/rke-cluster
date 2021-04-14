@@ -71,6 +71,9 @@ function _INSTALL_RKE2 {
 	sudo systemctl daemon-reload;
 	# ensure firewalld is stopped and disabled as this is not compatible with canal
 	sudo systemctl disable --now firewalld;
+	# install iptables because it is used in rke2-killall.sh
+	# install nfs-client for nfs-client-provisioner and longhorn and open-iscsi for longhorn
+	sudo zypper -n in iptables nfs-client open-iscsi
 	# create target dir for configs of rke2
 	sudo mkdir -p /etc/rancher/rke2
 	# workaround in v1.19.7+rke2r1 for authentication for base images from on-premise registry with authentication

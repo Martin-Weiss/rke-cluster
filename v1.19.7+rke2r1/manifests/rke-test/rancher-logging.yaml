@@ -34,6 +34,12 @@ subjects:
 - kind: ServiceAccount
   name: rancher-logging-fluentbit
   namespace: cattle-logging-system
+- kind: ServiceAccount
+  name: rancher-logging-rke2-containers-fluentd
+  namespace: cattle-logging-system
+- kind: ServiceAccount
+  name: rancher-logging-rke2-journald-fluentd
+  namespace: cattle-logging-system
 ---
 apiVersion: helm.cattle.io/v1
 kind: HelmChart
@@ -50,7 +56,7 @@ spec:
         systemDefaultRegistry: "registry01.suse:5000/rke-test/docker.io"
     additionalLoggingSources:
       rke2:
-        enabled: false
+        enabled: true
     rbac:
       psp:
         enabled: true

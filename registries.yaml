@@ -1,19 +1,19 @@
 mirrors:
   docker.io:
     endpoint:
-      - "https://%%REGISTRY%%/"
+      - "https://%%REGISTRY%%/v2/"
     rewrite:
-      "docker.io/(.*)": "%%STAGE%%/docker.io/$1"
+      "(.*)": "%%STAGE%%/docker.io/$1"
   quay.io:
     endpoint:
-      - "https://%%REGISTRY%%/"
+      - "https://%%REGISTRY%%/v2/"
     rewrite:
-      "quay.io/(.*)": "%%STAGE%%/quay.io/$1"
+      "(.*)": "%%STAGE%%/quay.io/$1"
   gcr.io:
     endpoint:
-      - "https://%%REGISTRY%%/"
+      - "https://%%REGISTRY%%/v2/"
     rewrite:
-      "gcr.io/(.*)": "%%STAGE%%/gcr.io/$1"
+      "(.*)": "%%STAGE%%/gcr.io/$1"
 configs:
   "%%REGISTRY%%":
     auth:
