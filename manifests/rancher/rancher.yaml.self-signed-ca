@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cattle-system
+---
+apiVersion: helm.cattle.io/v1
+kind: HelmChart
+metadata:
+  name: rancher
+  namespace: kube-system
+spec:
+  jobImage: %%REGISTRY%%/%%STAGE%%/docker.io/rancher/klipper-helm:v0.4.3
+  chart: https://%%CLUSTER%%.%%DOMAIN%%:9345/static/charts/rancher-v2.5.7.tgz
+  targetNamespace: cattle-system
+  valuesContent: |-
+    busyboxImage: %%REGISTRY%%/%%STAGE%%/docker.io/busybox
+    hostname: %%CLUSTER%%.%%DOMAIN%%
+    rancherImage: %%REGISTRY%%/%%STAGE%%/docker.io/rancher/rancher
+    systemDefaultRegistry: "%%REGISTRY%%/%%STAGE%%/docker.io"
+    useBundledSystemChart: true

@@ -1,5 +1,5 @@
 #!/bin/bash
-RKE2_VERSIONS="v1.19.7+rke2r1 v1.20.4+rke2r1 v1.20.5+rke2r1 v1.20.5-alpha1+rke2r2"
+RKE2_VERSIONS="v1.19.7+rke2r1 v1.19.8+rke2r1 v1.19.9+rke2r1 v1.20.4+rke2r1 v1.20.5+rke2r1 v1.20.5-alpha1+rke2r2"
 for RKE2_VERSION in $RKE2_VERSIONS; do
 	mkdir -p $RKE2_VERSION
 	if [ ! -f "$RKE2_VERSION/rke2.linux-amd64.tar.gz" ]; then

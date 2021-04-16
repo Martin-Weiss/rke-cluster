@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: longhorn-system
+---
+apiVersion: helm.cattle.io/v1
+kind: HelmChart
+metadata:
+  name: longhorn-crd
+  namespace: kube-system
+spec:
+  jobImage: %%REGISTRY%%/%%STAGE%%/docker.io/rancher/klipper-helm:v0.4.3
+  chart: https://%%CLUSTER%%.%%DOMAIN%%:9345/static/charts/longhorn-crd-v1.1.001.tgz
+  targetNamespace: longhorn-system

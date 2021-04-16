@@ -6,6 +6,10 @@
 #          	  - added server.txt and settings.txt
 # v0.3 08.04.2021 Martin Weiss - Martin.Weiss@suse.com
 #		  - added custom CA
+# v0.4 15.04.2021 Martin Weiss - Martin.Weiss@suse.com
+#		  - adjusted custom CA
+#		  - adjusted charts and manifest 
+#                   sources
 #
 # this script is used to create and upgrade rke2
 # clusters
@@ -257,6 +261,70 @@ EOF'
         export PATH=$PATH:/var/lib/rancher/rke2/bin
 }
 
+function _CONFIGURE_CUSTOM_CA {
+        # server-ca.crt and key need to be copied only if not exist in target and if exist in source
+        # only required on first master as others get it via registration against 9345
+        # added first experiment for rancher and cert-manager using custom CA
+        if [ -f $CA_CRT ] && [ -f $CA_KEY ] && [ "$FIRSTMASTER" == "1" ]; then
+	        sudo mkdir -p /var/lib/rancher/rke2/server/tls
+                echo 'custom CA exists and target CA does not exist - so copy custom one'
+                sudo cp -av $CA_CRT /var/lib/rancher/rke2/server/tls/server-ca.crt
+                sudo cp -av $CA_KEY /var/lib/rancher/rke2/server/tls/server-ca.key
+                sudo chmod 644 /var/lib/rancher/rke2/server/tls/server-ca.crt
+                sudo chmod 600 /var/lib/rancher/rke2/server/tls/server-ca.key
+	fi
+        if [ -f $CA_CRT ] && [ -f $CA_KEY ] ; then
+                echo 'base 64 encoding and cluster-issuer preparation'
+                TLS_CRT_B64=$(sudo cat $CA_CRT|base64 -w0)
+                TLS_KEY_B64=$(sudo cat $CA_KEY|base64 -w0)
+                if [ -f $RKECLUSTERDIR/manifests/cluster-issuer.yaml.private-ca ]; then
+                        sudo sed -i "s/%%CLUSTER%%/$CLUSTER/g" $RKECLUSTERDIR/manifests/cluster-issuer.yaml.private-ca
+                        sudo sed -i "s/%%TLS_CRT%%/$TLS_CRT_B64/g" $RKECLUSTERDIR/manifests/cluster-issuer.yaml.private-ca
+                        sudo sed -i "s/%%TLS_KEY%%/$TLS_KEY_B64/g" $RKECLUSTERDIR/manifests/cluster-issuer.yaml.private-ca
+                        sudo mv $RKECLUSTERDIR/manifests/cluster-issuer.yaml.private-ca $RKECLUSTERDIR/manifests/cluster-issuer.yaml
+                fi
+                if [ -f  $RKECLUSTERDIR/manifests/rancher.yaml.private-ca ]; then
+                        sudo sed -i "s/%%TLS_CRT%%/$TLS_CRT_B64/g" $RKECLUSTERDIR/manifests/rancher.yaml.private-ca
+                        sudo mv $RKECLUSTERDIR/manifests/rancher.yaml.private-ca $RKECLUSTERDIR/manifests/rancher.yaml
+                fi
+        else
+                echo 'no custom CA exists or target CA already there - do not copy CA'
+                if [ -f $RKECLUSTERDIR/manifests/cluster-issuer.yaml.self-signed-ca ]; then
+                        sudo mv  $RKECLUSTERDIR/manifests/cluster-issuer.yaml.self-signed-ca  $RKECLUSTERDIR/manifests/cluster-issuer.yaml
+                fi
+                if [ -f $RKECLUSTERDIR/manifests/rancher.yaml.self-signed-ca  ]; then
+                        sudo mv $RKECLUSTERDIR/manifests/rancher.yaml.self-signed-ca $RKECLUSTERDIR/manifests/rancher.yaml
+                fi
+        fi
+}
+
+function _FIX_1_20_DEPLOYMENT {
+        # have to adopt 1.20.4 workaround before starting the cluster
+        if [ "$RKE2_VERSION" == "v1.20.4+rke2r1" ] || [ "$RKE2_VERSION" == "v1.20.5+rke2r1" ]; then
+	        # change in system-default-registry does not allow namespace anymore
+        	sudo sed -i "s/^system-default-registry:.*/system-default-registry: $REGISTRY/g" /etc/rancher/rke2/config.yaml
+	        # due to missing namespacee support for initial images have to use tarball
+	        sudo mkdir -p /var/lib/rancher/rke2/agent/images
+ 	        sudo cp -av $RKECLUSTERDIR/$RKE2_VERSION/rke2-images.linux-amd64.tar.zst /var/lib/rancher/rke2/agent/images
+	        if grep airgap-extra-registry /etc/rancher/rke2/config.yaml || [ $WORKER == "0" ]; then
+	                echo "airgap-extra-registry already set or we are on a master"
+	        else
+	                echo "adding airgap-extra-registry as workaround for not setting proper image tags on workers"
+                	sudo bash -c "echo airgap-extra-registry: $REGISTRY >> /etc/rancher/rke2/config.yaml"
+        	fi
+        fi
+}
+
+function _FIX_1_20_5_R2 {
+        # test v1.20.5-alpha1+rke2r2
+        # this version should have working registry rewrite
+        # removing system-default-registry!
+        if [ "$RKE2_VERSION" == "v1.20.5-alpha1+rke2r2" ] ; then
+        	sudo sed -i "/^system-default-registry:.*/d" /etc/rancher/rke2/config.yaml
+	        # todo: remove rancher system-default registry when on rancher cluster, too!
+        fi
+}
+
 function _COPY_MANIFESTS_AND_CHARTS {
 		echo "Copy default manifests and charts to master"
 		# all masters need all static charts as we can not download them from helm repo that has self-signed certificate
@@ -265,30 +333,34 @@ function _COPY_MANIFESTS_AND_CHARTS {
 		# during upgrades we might deliver "other" charts - depending on dependencies and upgrade procedures
 		sudo mkdir -p /var/lib/rancher/rke2/server/manifests
 		sudo mkdir -p /var/lib/rancher/rke2/server/static/charts
-		sudo rsync -a --delete $RKECLUSTERDIR/$RKE2_VERSION/static/charts/$CLUSTER/* /var/lib/rancher/rke2/server/static/charts
-		sudo rsync -a --delete $RKECLUSTERDIR/$RKE2_VERSION/manifests/$CLUSTER/* /var/lib/rancher/rke2/server/manifests
-
-}
-
-function _FIX_1_20_DEPLOYMENT {
-	# change in system-default-registry does not allow namespace anymore
-	sudo sed -i "s/^system-default-registry:.*/system-default-registry: $REGISTRY/g" /etc/rancher/rke2/config.yaml
-	# due to missing namespacee support for initial images have to use tarball
-	sudo mkdir -p /var/lib/rancher/rke2/agent/images 
-	sudo cp -av $RKECLUSTERDIR/$RKE2_VERSION/rke2-images.linux-amd64.tar.zst /var/lib/rancher/rke2/agent/images
-	if grep airgap-extra-registry /etc/rancher/rke2/config.yaml || [ $WORKER == "0" ]; then
-		echo "airgap-extra-registry already set or we are on a master"
-	else
-		echo "adding airgap-extra-registry as workaround for not setting proper image tags on workers"
-		sudo bash -c "echo airgap-extra-registry: $REGISTRY >> /etc/rancher/rke2/config.yaml"
-	fi
-}
-
-function _FIX_1_20_5_R2 {
-	# this version should have working registry rewrite
-	# removing system-default-registry!
-	sudo sed -i "/^system-default-registry:.*/d" /etc/rancher/rke2/config.yaml
-	# todo: remove rancher system-default registry when on rancher cluster, too!
+		sudo rsync -a --delete $RKECLUSTERDIR/charts/* /var/lib/rancher/rke2/server/static/charts
+		sudo cp -a $RKECLUSTERDIR/manifests/all/* $RKECLUSTERDIR/manifests/
+		if [ $CLUSTER == "rancher" ]; then
+			echo "cluster is rancher"
+			sudo cp -a $RKECLUSTERDIR/manifests/rancher/*.yaml* $RKECLUSTERDIR/manifests/
+		else
+			echo "cluster is downstream cluster"
+			sudo cp -a $RKECLUSTERDIR/manifests/downstream/*.yaml* $RKECLUSTERDIR/manifests/
+		fi
+	        sudo sed -i "s/%%STAGE%%/$STAGE/g" $RKECLUSTERDIR/manifests/*.yaml*
+        	sudo sed -i "s/%%DOMAIN%%/$DOMAIN/g" $RKECLUSTERDIR/manifests/*.yaml*
+	        sudo sed -i "s/%%CLUSTER%%/$CLUSTER/g" $RKECLUSTERDIR/manifests/*.yaml*
+	        sudo sed -i "s/%%REGISTRY%%/$REGISTRY/g" $RKECLUSTERDIR/manifests/*.yaml*
+		# cluster specific yaml files
+		for FILE in $(sudo ls $RKECLUSTERDIR/manifests/*.$CLUSTER); do sudo mv $FILE $(echo $FILE|sed "s/\.$CLUSTER//g"); done
+		# in case we have a custom CA
+		_CONFIGURE_CUSTOM_CA
+                # helm image changes after 1.19.7
+                if [ ! "$RKE2_VERSION" == "v1.19.7+rke2r1" ] ; then
+			sudo sed -i 's/klipper-helm:v0.4.3/klipper-helm:v0.4.3-build20210225/g' $RKECLUSTERDIR/manifests/*.yaml*
+		fi
+		# just to the first master for the moment as the recognition on "identical" is not based on file content / md5sum or similar
+		if [ "$FIRSTMASTER" == "1" ]; then
+			echo "copy manifests only on first master until we have better solution to apply only once"
+			# try to ensure all files have the same timestamp to apply only once
+			sudo touch -d "2021-04-16 11:53" $RKECLUSTERDIR/manifests/*.yaml
+			sudo cp -a $RKECLUSTERDIR/manifests/*.yaml /var/lib/rancher/rke2/server/manifests
+		fi
 }
 
 function _ADJUST_CLUSTER_IDENTITY {
@@ -298,28 +370,6 @@ function _ADJUST_CLUSTER_IDENTITY {
                 sudo sed -i "s/%%REGISTRY%%/$REGISTRY/g" /etc/rancher/rke2/config.yaml
         	sudo sed -i "s/%%STAGE%%/$STAGE/g" /etc/rancher/rke2/config.yaml
                 sudo sed -i "s/%%CLUSTER%%/$CLUSTER/g" /etc/rancher/rke2/vsphere.conf
-		# have to adopt 1.20.4 workaround before starting the cluster
-		if [ "$RKE2_VERSION" == "v1.20.4+rke2r1" ] || [ "$RKE2_VERSION" == "v1.20.5+rke2r1" ]; then
-			_FIX_1_20_DEPLOYMENT
-		fi
-		if [ "$RKE2_VERSION" == "v1.20.5-alpha1+rke2r2" ] ; then
-			_FIX_1_20_5_R2		
-		fi
-}
-
-function _CONFIGURE_CUSTOM_CA {
-	# server-ca.crt and key need to be copied only if not exist in target and if exist in source
-	# only required on first master as others get it via registration against 9345
-	sudo mkdir -p /var/lib/rancher/rke2/server/tls
-	sudo bash -c "if [ -f $CA_CRT ] && [ -f $CA_KEY ] && [ ! -f /var/lib/rancher/rke2/server/tls/server-ca.crt ] && [ ! -f /var/lib/rancher/rke2/server/tls/server-ca.key ]; then
-		echo 'custom CA exists and target CA does not exist - so copy custom one'
-		sudo cp -av $CA_CRT /var/lib/rancher/rke2/server/tls/server-ca.crt
-		sudo cp -av $CA_KEY /var/lib/rancher/rke2/server/tls/server-ca.key
-		chmod 644 /var/lib/rancher/rke2/server/tls/server-ca.crt
-		chmod 600 /var/lib/rancher/rke2/server/tls/server-ca.key
-	else
-		echo 'no custom CA exists or target CA already there - do not copy CA'
-	fi"
 }
 
 function _JOIN_CLUSTER {
@@ -332,7 +382,8 @@ function _JOIN_CLUSTER {
                 _PREPARE_RKE2_CLOUD_CONFIG
 		_COPY_MANIFESTS_AND_CHARTS
 		_ADJUST_CLUSTER_IDENTITY
-		_CONFIGURE_CUSTOM_CA
+                _FIX_1_20_DEPLOYMENT
+                _FIX_1_20_5_R2
                 sudo sed -i "/^server/d" /etc/rancher/rke2/config.yaml
                 sudo systemctl enable rke2-server.service 2>&1 >/dev/null;
                 sudo systemctl restart rke2-server.service 2>&1 >/dev/null;
@@ -347,6 +398,8 @@ function _JOIN_CLUSTER {
                 _PREPARE_RKE2_CLOUD_CONFIG
 		_COPY_MANIFESTS_AND_CHARTS
 		_ADJUST_CLUSTER_IDENTITY
+                _FIX_1_20_DEPLOYMENT
+                _FIX_1_20_5_R2
                 sudo systemctl enable rke2-server.service 2>&1 >/dev/null;
                 sudo systemctl restart rke2-server.service 2>&1 >/dev/null;
                 _ADMIN_PREPARE
@@ -359,6 +412,8 @@ function _JOIN_CLUSTER {
                 _PREPARE_RKE2_AGENT_CONFIG
                 _PREPARE_RKE2_CLOUD_CONFIG
 		_ADJUST_CLUSTER_IDENTITY
+                _FIX_1_20_DEPLOYMENT
+                _FIX_1_20_5_R2
                 sudo systemctl enable rke2-agent.service 2>&1 >/dev/null;
                 sudo systemctl restart rke2-agent.service 2>&1 >/dev/null;
 		_AGENT_PREPARE

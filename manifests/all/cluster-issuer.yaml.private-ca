@@ -1,0 +1,19 @@
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: %%CLUSTER%%-issuer
+  namespace: cert-manager
+spec:
+  ca:
+    secretName: %%CLUSTER%%-ca
+---
+apiVersion: v1
+data:
+  tls.crt: %%TLS_CRT%%
+  tls.key: %%TLS_KEY%%
+kind: Secret
+metadata:
+  name: %%CLUSTER%%-ca
+  namespace: cert-manager
+type: kubernetes.io/tls
+
