@@ -1,0 +1,15 @@
+apiVersion: helm.cattle.io/v1
+kind: HelmChart
+metadata:
+  name: rke2-cilium
+  namespace: kube-system
+spec:
+  jobImage: %%REGISTRY%%/%%STAGE%%/docker.io/rancher/klipper-helm:v0.4.3
+  chart: https://%%CLUSTER%%.%%DOMAIN%%:9345/static/charts/rke2-cilium-1.9.402.tgz
+  bootstrap: true
+  valuesContent: |-
+    global:
+      cattle:
+        systemDefaultRegistry: "%%REGISTRY%%/%%STAGE%%/docker.io"
+        clusterName: %%CLUSTER%%
+    cilium: {}

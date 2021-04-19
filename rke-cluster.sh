@@ -325,6 +325,17 @@ function _FIX_1_20_5_R2 {
         fi
 }
 
+function _CILIUM_NOT_CANAL {
+	if [ $RKE2_VERSION == "v1.20.5-r2r1" ] && [ -f $RKECLUSTERDIR/manifests/rke2-cilium.yaml ]; then
+		echo "Cilium Yaml exists and cluster version is 1.20.5-r2r1"
+		sudo sed -i "d/^disable: rke2-canal/d" /etc/rancher/rke2/config.yaml
+		sudo bash -c "echo "disable: rke2-canal" >>/etc/rancher/rke2/config.yaml"
+		sudo rm $RKECLUSTERDIR/manifests/rke2-canal*.yaml /var/lib/rancher/rke2/server/manifests/rke2-canal*.yaml
+	else
+		sudo rm $RKECLUSTERDIR/manifests/rke2-cilium*.yaml
+	fi
+}
+
 function _COPY_MANIFESTS_AND_CHARTS {
 		echo "Copy default manifests and charts to master"
 		# all masters need all static charts as we can not download them from helm repo that has self-signed certificate
@@ -339,10 +350,13 @@ function _COPY_MANIFESTS_AND_CHARTS {
 		if [ $CLUSTER == $RANCHERCLUSTER ]; then
 			echo "cluster is $RANCHERCLUSTER"
 			sudo cp -a $RKECLUSTERDIR/manifests/$RANCHERCLUSTER/*.yaml* $RKECLUSTERDIR/manifests/
+			sudo cp -a $RKECLUSTERDIR/manifests/$CLUSTER/* $RKECLUSTERDIR/manifests/
 		else
 			echo "cluster is downstream cluster"
 			sudo cp -a $RKECLUSTERDIR/manifests/downstream/*.yaml* $RKECLUSTERDIR/manifests/
+			sudo cp -a $RKECLUSTERDIR/manifests/$CLUSTER/* $RKECLUSTERDIR/manifests/
 		fi
+		_CILIUM_NOT_CANAL
 	        sudo sed -i "s/%%STAGE%%/$STAGE/g" $RKECLUSTERDIR/manifests/*.yaml*
         	sudo sed -i "s/%%DOMAIN%%/$DOMAIN/g" $RKECLUSTERDIR/manifests/*.yaml*
 	        sudo sed -i "s/%%CLUSTER%%/$CLUSTER/g" $RKECLUSTERDIR/manifests/*.yaml*
