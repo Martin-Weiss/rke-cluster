@@ -22,7 +22,7 @@ spec:
       enabled: true
       ## credentialSecretName if set, should be the name of the Secret containing AWS credentials.
       ## To use IAM Role, don't set this field
-      credentialSecretName: "rancher-backup-minio-secret"
+      credentialSecretName: "rancher-backup-s3-secret"
       credentialSecretNamespace: "cattle-resources-system"
       region: "de-bw-1"
       bucketName: "%%CLUSTER%%"

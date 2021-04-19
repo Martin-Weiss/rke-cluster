@@ -115,7 +115,7 @@ tls-san:
 node-label:
   - "cluster=%%CLUSTER%%"
 EOF'
-	if ! [ $CLUSTER == "$RANCHERCLUSTER" ]; then
+	if grep ",$CLUSTER," $SERVERTXT |grep ',worker,'; then
 		echo "Add node-taint NoExecute on master because we have workers"
 		sudo bash -c 'cat << EOF >> /etc/rancher/rke2/config.yaml
 node-taint:
@@ -334,10 +334,11 @@ function _COPY_MANIFESTS_AND_CHARTS {
 		sudo mkdir -p /var/lib/rancher/rke2/server/manifests
 		sudo mkdir -p /var/lib/rancher/rke2/server/static/charts
 		sudo rsync -a --delete $RKECLUSTERDIR/charts/* /var/lib/rancher/rke2/server/static/charts
+		sudo rm $RKECLUSTERDIR/manifests/*.yaml*
 		sudo cp -a $RKECLUSTERDIR/manifests/all/* $RKECLUSTERDIR/manifests/
-		if [ $CLUSTER == "rancher" ]; then
-			echo "cluster is rancher"
-			sudo cp -a $RKECLUSTERDIR/manifests/rancher/*.yaml* $RKECLUSTERDIR/manifests/
+		if [ $CLUSTER == $RANCHERCLUSTER ]; then
+			echo "cluster is $RANCHERCLUSTER"
+			sudo cp -a $RKECLUSTERDIR/manifests/$RANCHERCLUSTER/*.yaml* $RKECLUSTERDIR/manifests/
 		else
 			echo "cluster is downstream cluster"
 			sudo cp -a $RKECLUSTERDIR/manifests/downstream/*.yaml* $RKECLUSTERDIR/manifests/
