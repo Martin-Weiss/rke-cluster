@@ -142,35 +142,12 @@ EOF'
 }
 
 function _PREPARE_RKE2_CLOUD_CONFIG {
-	echo "Create vsphere.conf"
-	sudo bash -c 'cat << EOF > /etc/rancher/rke2/vsphere.conf
-[Global]
-user = "terraform-kubernetes@vsphere.local"
-password = "Suse1234!"
-port = "443"
-insecure-flag = "1"
-
-[VirtualCenter "vsphere.suse"]
-datacenters = "Datacenter1"
-
-[Workspace]
-server = "vsphere.suse"
-datacenter = "Datacenter1"
-default-datastore = "datastore1"
-resourcepool-path = "Cluster1/Resources"
-folder = "/Datacenter1/vm/Kubernetes/%%CLUSTER%%"
-
-[Disk]
-scsicontrollertype = pvscsi
-
-#[Network]
-#public-network = "192-168-0"
-
-#[Labels]
-#region = "<VC_DATACENTER_TAG>"
-#zone = "<VC_CLUSTER_TAG>"
-
-EOF'
+	if [ -f $RKECLUSTERDIR/vsphere.conf ]; then
+		echo "Create vsphere.conf as it exists"
+		sudo cp -a $RKECLUSTERDIR/vsphere.conf /etc/rancher/rke2/vsphere.conf
+	else
+		echo "no vsphere.conf so not creating it"
+	fi
 }
 
 function _PREPARE_REGISTRIES_YAML {
@@ -268,8 +245,8 @@ function _CONFIGURE_CUSTOM_CA {
         if [ -f $CA_CRT ] && [ -f $CA_KEY ] && [ "$FIRSTMASTER" == "1" ]; then
 	        sudo mkdir -p /var/lib/rancher/rke2/server/tls
                 echo 'custom CA exists and target CA does not exist - so copy custom one'
-                sudo cp -av $CA_CRT /var/lib/rancher/rke2/server/tls/server-ca.crt
-                sudo cp -av $CA_KEY /var/lib/rancher/rke2/server/tls/server-ca.key
+                sudo cp -a $CA_CRT /var/lib/rancher/rke2/server/tls/server-ca.crt
+                sudo cp -a $CA_KEY /var/lib/rancher/rke2/server/tls/server-ca.key
                 sudo chmod 644 /var/lib/rancher/rke2/server/tls/server-ca.crt
                 sudo chmod 600 /var/lib/rancher/rke2/server/tls/server-ca.key
 	fi
@@ -305,7 +282,7 @@ function _FIX_1_20_DEPLOYMENT {
         	sudo sed -i "s/^system-default-registry:.*/system-default-registry: $REGISTRY/g" /etc/rancher/rke2/config.yaml
 	        # due to missing namespacee support for initial images have to use tarball
 	        sudo mkdir -p /var/lib/rancher/rke2/agent/images
- 	        sudo cp -av $RKECLUSTERDIR/$RKE2_VERSION/rke2-images.linux-amd64.tar.zst /var/lib/rancher/rke2/agent/images
+ 	        sudo cp -a $RKECLUSTERDIR/$RKE2_VERSION/rke2-images.linux-amd64.tar.zst /var/lib/rancher/rke2/agent/images
 	        if grep airgap-extra-registry /etc/rancher/rke2/config.yaml || [ $WORKER == "0" ]; then
 	                echo "airgap-extra-registry already set or we are on a master"
 	        else
@@ -390,7 +367,14 @@ function _ADJUST_CLUSTER_IDENTITY {
         	sudo sed -i "s/%%CLUSTERCIDR%%/$CLUSTERCIDR/g" /etc/rancher/rke2/config.yaml
         	sudo sed -i "s/%%SERVICECIDR%%/$SERVICECIDR/g" /etc/rancher/rke2/config.yaml
         	sudo sed -i "s/%%CLUSTERDNS%%/$CLUSTERDNS/g" /etc/rancher/rke2/config.yaml
-                sudo sed -i "s/%%CLUSTER%%/$CLUSTER/g" /etc/rancher/rke2/vsphere.conf
+		if [ -f /etc/rancher/rke2/vsphere.conf ]; then 
+			echo "adjust vsphere.conf as it exists"
+	                sudo sed -i "s/%%CLUSTER%%/$CLUSTER/g" /etc/rancher/rke2/vsphere.conf
+		else
+			echo "no vsphere.conf so removing cloud config from config.yaml"
+			sudo sed -i '/cloud-provider-name: vsphere/d' /etc/rancher/rke2/config.yaml
+			sudo sed -i '/cloud-provider-config: \/etc\/rancher\/rke2\/vsphere.conf/d' /etc/rancher/rke2/config.yaml
+		fi
 }
 
 function _JOIN_CLUSTER {

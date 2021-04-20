@@ -17,3 +17,7 @@ rename manifests/rancher to the clustername you have defined for rancher in sett
 adjust rke-cluster.sh -> vsphere CPI, credentials, cluster and services CIRD
 
 adjust manifest files in manifests/... - especially s3 credentials and other configs
+
+adust or delete vsphere.conf and yaml files / charts that are not required
+
+add custom CA to tls subdir if required
