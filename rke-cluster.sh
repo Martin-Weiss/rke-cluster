@@ -303,13 +303,14 @@ function _FIX_1_20_5_R2 {
 }
 
 function _CILIUM_NOT_CANAL {
-	if [ $RKE2_VERSION == "v1.20.5-r2r1" ] && [ -f $RKECLUSTERDIR/manifests/rke2-cilium.yaml ]; then
-		echo "Cilium Yaml exists and cluster version is 1.20.5-r2r1"
-		sudo sed -i "d/^disable: rke2-canal/d" /etc/rancher/rke2/config.yaml
-		sudo bash -c "echo "disable: rke2-canal" >>/etc/rancher/rke2/config.yaml"
+	if [ $RKE2_VERSION == "v1.20.5+rke2r1" ] && [ -f $RKECLUSTERDIR/manifests/rke2-cilium.yaml ]; then
+		echo "Cilium Yaml exists and cluster version is 1.20.5-rke2r1"
+		sudo sed -i "/^disable: rke2-canal/d" /etc/rancher/rke2/config.yaml
+		sudo bash -c 'echo "disable: rke2-canal" >>/etc/rancher/rke2/config.yaml'
 		sudo rm $RKECLUSTERDIR/manifests/rke2-canal*.yaml /var/lib/rancher/rke2/server/manifests/rke2-canal*.yaml
 	else
-		sudo rm $RKECLUSTERDIR/manifests/rke2-cilium*.yaml
+		echo "Cilium Yaml does not exist or cluster version is not v1.20.5+rke2r1"
+		sudo rm $RKECLUSTERDIR/manifests/rke2-cilium*.yaml*
 	fi
 }
 
@@ -319,11 +320,16 @@ function _COPY_MANIFESTS_AND_CHARTS {
 		# all masters should have the same
 		# also delete stuff that is not required anymore
 		# during upgrades we might deliver "other" charts - depending on dependencies and upgrade procedures
+		# create target directories
 		sudo mkdir -p /var/lib/rancher/rke2/server/manifests
 		sudo mkdir -p /var/lib/rancher/rke2/server/static/charts
+		# copy static charts
 		sudo rsync -a --delete $RKECLUSTERDIR/charts/* /var/lib/rancher/rke2/server/static/charts
+		# delete old yaml files during changes & upgrades
 		sudo rm $RKECLUSTERDIR/manifests/*.yaml*
-		sudo cp -a $RKECLUSTERDIR/manifests/all/* $RKECLUSTERDIR/manifests/
+		# copy all manifest templates
+		sudo cp -a $RKECLUSTERDIR/manifests/all/*.yaml* $RKECLUSTERDIR/manifests/
+		# copy rancher deployment or downstream deployments
 		if [ $CLUSTER == $RANCHERCLUSTER ]; then
 			echo "cluster is $RANCHERCLUSTER"
 			sudo cp -a $RKECLUSTERDIR/manifests/$RANCHERCLUSTER/*.yaml* $RKECLUSTERDIR/manifests/
@@ -331,15 +337,16 @@ function _COPY_MANIFESTS_AND_CHARTS {
 		else
 			echo "cluster is downstream cluster"
 			sudo cp -a $RKECLUSTERDIR/manifests/downstream/*.yaml* $RKECLUSTERDIR/manifests/
-			sudo cp -a $RKECLUSTERDIR/manifests/$CLUSTER/* $RKECLUSTERDIR/manifests/
+			sudo cp -a $RKECLUSTERDIR/manifests/$CLUSTER/*.yaml* $RKECLUSTERDIR/manifests/
 		fi
+		# replace canal with cilium in case cilium yaml exists
 		_CILIUM_NOT_CANAL
 	        sudo sed -i "s/%%STAGE%%/$STAGE/g" $RKECLUSTERDIR/manifests/*.yaml*
         	sudo sed -i "s/%%DOMAIN%%/$DOMAIN/g" $RKECLUSTERDIR/manifests/*.yaml*
 	        sudo sed -i "s/%%CLUSTER%%/$CLUSTER/g" $RKECLUSTERDIR/manifests/*.yaml*
 	        sudo sed -i "s/%%REGISTRY%%/$REGISTRY/g" $RKECLUSTERDIR/manifests/*.yaml*
-        	sudo sed -i "s/%%CLUSTERCIDR%%/$CLUSTERCIDR/g" $RKECLUSTERDIR/manifests/*.yaml*
-        	sudo sed -i "s/%%SERVICECIDR%%/$SERVICECIDR/g" $RKECLUSTERDIR/manifests/*.yaml*
+        	sudo sed -i "s#%%CLUSTERCIDR%%#$CLUSTERCIDR#g" $RKECLUSTERDIR/manifests/*.yaml*
+        	sudo sed -i "s#%%SERVICECIDR%%#$SERVICECIDR#g" $RKECLUSTERDIR/manifests/*.yaml*
         	sudo sed -i "s/%%CLUSTERDNS%%/$CLUSTERDNS/g" $RKECLUSTERDIR/manifests/*.yaml*
 		# cluster specific yaml files
 		for FILE in $(sudo ls $RKECLUSTERDIR/manifests/*.$CLUSTER); do sudo mv $FILE $(echo $FILE|sed "s/\.$CLUSTER//g"); done
@@ -364,8 +371,8 @@ function _ADJUST_CLUSTER_IDENTITY {
                 sudo sed -i "s/%%DOMAIN%%/$DOMAIN/g" /etc/rancher/rke2/config.yaml
                 sudo sed -i "s/%%REGISTRY%%/$REGISTRY/g" /etc/rancher/rke2/config.yaml
         	sudo sed -i "s/%%STAGE%%/$STAGE/g" /etc/rancher/rke2/config.yaml
-        	sudo sed -i "s/%%CLUSTERCIDR%%/$CLUSTERCIDR/g" /etc/rancher/rke2/config.yaml
-        	sudo sed -i "s/%%SERVICECIDR%%/$SERVICECIDR/g" /etc/rancher/rke2/config.yaml
+        	sudo sed -i "s#%%CLUSTERCIDR%%#$CLUSTERCIDR#g" /etc/rancher/rke2/config.yaml
+        	sudo sed -i "s#%%SERVICECIDR%%#$SERVICECIDR#g" /etc/rancher/rke2/config.yaml
         	sudo sed -i "s/%%CLUSTERDNS%%/$CLUSTERDNS/g" /etc/rancher/rke2/config.yaml
 		if [ -f /etc/rancher/rke2/vsphere.conf ]; then 
 			echo "adjust vsphere.conf as it exists"
