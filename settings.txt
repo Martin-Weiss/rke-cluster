@@ -1,5 +1,6 @@
 # user for rke
 RKEUSER="rkeadmin"
+RKEGROUP="rkeadmin"
 # clusterfiledir
 RKECLUSTERDIR=/home/$RKEUSER/rke-cluster
 # on premise registry to be used (https will always be used)

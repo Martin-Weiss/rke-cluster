@@ -218,7 +218,7 @@ EOF'
 	sudo mkdir -p /root/.kube
 	sudo bash -c "if [ ! -f /root/.kube/config ]; then ln -s /etc/rancher/rke2/rke2.yaml /root/.kube/config 2>&1 >/dev/null; fi"
 	# give $RKEUSER group access to kubeconfig
-	sudo chgrp $RKEUSER /etc/rancher/rke2/rke2.yaml
+	sudo chgrp $RKEGROUP /etc/rancher/rke2/rke2.yaml
 	# export already during initial deployment as profile.local is not executed in current session
 	export KUBECONFIG=/etc/rancher/rke2/rke2.yaml
 	export CRI_CONFIG_FILE=/var/lib/rancher/rke2/agent/etc/crictl.yaml
