@@ -11,3 +11,7 @@ RANCHERCLUSTER="rancher"
 # server ca
 CA_KEY="/home/$RKEUSER/rke-cluster/tls/server-ca.key"
 CA_CRT="/home/$RKEUSER/rke-cluster/tls/server-ca.crt"
+# internal network
+CLUSTERCIDR="172.27.0.0/16"
+SERVICECIDR="172.28.0.0/16"
+CLUSTERDNS="172.28.0.10"

@@ -100,9 +100,9 @@ function _PREPARE_RKE2_SERVER_CONFIG {
 	sudo bash -c 'cat << EOF > /etc/rancher/rke2/config.yaml
 write-kubeconfig-mode: "0640"
 server: https://%%CLUSTER%%.%%DOMAIN%%:9345
-cluster-cidr: "172.27.0.0/16"
-service-cidr: "172.28.0.0/16"
-cluster-dns: "172.28.0.10"
+cluster-cidr: "%%CLUSTERCIDR%%"
+service-cidr: "%%SERVICECIDR%%"
+cluster-dns: "%%CLUSTERDNS%%"
 cloud-provider-name: vsphere
 cloud-provider-config: /etc/rancher/rke2/vsphere.conf
 private-registry: /etc/rancher/rke2/registries.yaml
@@ -361,6 +361,9 @@ function _COPY_MANIFESTS_AND_CHARTS {
         	sudo sed -i "s/%%DOMAIN%%/$DOMAIN/g" $RKECLUSTERDIR/manifests/*.yaml*
 	        sudo sed -i "s/%%CLUSTER%%/$CLUSTER/g" $RKECLUSTERDIR/manifests/*.yaml*
 	        sudo sed -i "s/%%REGISTRY%%/$REGISTRY/g" $RKECLUSTERDIR/manifests/*.yaml*
+        	sudo sed -i "s/%%CLUSTERCIDR%%/$CLUSTERCIDR/g" $RKECLUSTERDIR/manifests/*.yaml*
+        	sudo sed -i "s/%%SERVICECIDR%%/$SERVICECIDR/g" $RKECLUSTERDIR/manifests/*.yaml*
+        	sudo sed -i "s/%%CLUSTERDNS%%/$CLUSTERDNS/g" $RKECLUSTERDIR/manifests/*.yaml*
 		# cluster specific yaml files
 		for FILE in $(sudo ls $RKECLUSTERDIR/manifests/*.$CLUSTER); do sudo mv $FILE $(echo $FILE|sed "s/\.$CLUSTER//g"); done
 		# in case we have a custom CA
@@ -384,6 +387,9 @@ function _ADJUST_CLUSTER_IDENTITY {
                 sudo sed -i "s/%%DOMAIN%%/$DOMAIN/g" /etc/rancher/rke2/config.yaml
                 sudo sed -i "s/%%REGISTRY%%/$REGISTRY/g" /etc/rancher/rke2/config.yaml
         	sudo sed -i "s/%%STAGE%%/$STAGE/g" /etc/rancher/rke2/config.yaml
+        	sudo sed -i "s/%%CLUSTERCIDR%%/$CLUSTERCIDR/g" /etc/rancher/rke2/config.yaml
+        	sudo sed -i "s/%%SERVICECIDR%%/$SERVICECIDR/g" /etc/rancher/rke2/config.yaml
+        	sudo sed -i "s/%%CLUSTERDNS%%/$CLUSTERDNS/g" /etc/rancher/rke2/config.yaml
                 sudo sed -i "s/%%CLUSTER%%/$CLUSTER/g" /etc/rancher/rke2/vsphere.conf
 }
 

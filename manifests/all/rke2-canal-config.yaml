@@ -5,4 +5,4 @@ metadata:
   namespace: kube-system
 spec:
   valuesContent: |-
-    podCidr: 172.27.0.0/16
+    podCidr: %%CLUSTERCIDR%%
