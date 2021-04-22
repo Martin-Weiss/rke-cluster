@@ -276,7 +276,7 @@ function _CONFIGURE_CUSTOM_CA {
 }
 
 function _FIX_1_20_DEPLOYMENT {
-        # have to adopt 1.20.4 workaround before starting the cluster
+        # have to adopt 1.20.4 / 1.20.5 workaround before starting the cluster
         if [ "$RKE2_VERSION" == "v1.20.4+rke2r1" ] || [ "$RKE2_VERSION" == "v1.20.5+rke2r1" ]; then
 	        # change in system-default-registry does not allow namespace anymore
         	sudo sed -i "s/^system-default-registry:.*/system-default-registry: $REGISTRY/g" /etc/rancher/rke2/config.yaml
@@ -292,11 +292,10 @@ function _FIX_1_20_DEPLOYMENT {
         fi
 }
 
-function _FIX_1_20_5_R2 {
-        # test v1.20.5-alpha1+rke2r2 and v1.20.6-rc2+rke2r1
+function _FIX_1_20_6 {
         # this version should have working registry rewrite
         # removing system-default-registry!
-        if [ "$RKE2_VERSION" == "v1.20.5-alpha1+rke2r2" ] || [ "$RKE2_VERSION" == "v1.20.6-rc2+rke2r1" ] ; then
+        if [ "$RKE2_VERSION" == "v1.20.6+rke2r1" ] ; then
         	sudo sed -i "/^system-default-registry:.*/d" /etc/rancher/rke2/config.yaml
 	        # todo: remove rancher system-default registry when on rancher cluster, too!
         fi
@@ -395,7 +394,7 @@ function _JOIN_CLUSTER {
 		_COPY_MANIFESTS_AND_CHARTS
 		_ADJUST_CLUSTER_IDENTITY
                 _FIX_1_20_DEPLOYMENT
-                _FIX_1_20_5_R2
+                _FIX_1_20_6
                 sudo sed -i "/^server/d" /etc/rancher/rke2/config.yaml
                 sudo systemctl enable rke2-server.service 2>&1 >/dev/null;
                 sudo systemctl restart rke2-server.service 2>&1 >/dev/null;
@@ -411,7 +410,7 @@ function _JOIN_CLUSTER {
 		_COPY_MANIFESTS_AND_CHARTS
 		_ADJUST_CLUSTER_IDENTITY
                 _FIX_1_20_DEPLOYMENT
-                _FIX_1_20_5_R2
+                _FIX_1_20_6
                 sudo systemctl enable rke2-server.service 2>&1 >/dev/null;
                 sudo systemctl restart rke2-server.service 2>&1 >/dev/null;
                 _ADMIN_PREPARE
@@ -425,7 +424,7 @@ function _JOIN_CLUSTER {
                 _PREPARE_RKE2_CLOUD_CONFIG
 		_ADJUST_CLUSTER_IDENTITY
                 _FIX_1_20_DEPLOYMENT
-                _FIX_1_20_5_R2
+                _FIX_1_20_6
                 sudo systemctl enable rke2-agent.service 2>&1 >/dev/null;
                 sudo systemctl restart rke2-agent.service 2>&1 >/dev/null;
 		_AGENT_PREPARE
