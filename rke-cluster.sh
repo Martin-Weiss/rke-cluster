@@ -78,6 +78,8 @@ function _INSTALL_RKE2 {
 	# install iptables because it is used in rke2-killall.sh
 	# install nfs-client for nfs-client-provisioner and longhorn and open-iscsi for longhorn
 	sudo zypper -n in iptables nfs-client open-iscsi
+        # some deployments deliver PSP with apparmor support (i.e. cert-manager) - so installing it
+        sudo zypper -n in -t pattern apparmor
 	# create target dir for configs of rke2
 	sudo mkdir -p /etc/rancher/rke2
 	# workaround in v1.19.7+rke2r1 for authentication for base images from on-premise registry with authentication
