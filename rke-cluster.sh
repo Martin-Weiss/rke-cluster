@@ -323,6 +323,10 @@ function _COPY_MANIFESTS_AND_CHARTS {
 		sudo mkdir -p /var/lib/rancher/rke2/server/manifests
 		sudo mkdir -p /var/lib/rancher/rke2/server/static/charts
 		# copy static charts
+                if [ ! -f /usr/bin/rsync ]; then
+                        echo "rsync not installed but reqired - installing"
+                        sudo zypper -n in rsync
+                fi
 		sudo rsync -a --delete $RKECLUSTERDIR/charts/* /var/lib/rancher/rke2/server/static/charts
 		# delete old yaml files during changes & upgrades
 		sudo rm $RKECLUSTERDIR/manifests/*.yaml*
