@@ -116,7 +116,7 @@ private-registry: /etc/rancher/rke2/registries.yaml
 agent-token: %%CLUSTER%%-token-asfebwadg
 token: %%CLUSTER%%-token-asfebwadg
 system-default-registry: %%REGISTRY%%/%%STAGE%%/docker.io
-profile: cis-1.5
+profile: cis-1.6
 tls-san:
   - "%%CLUSTER%%.%%DOMAIN%%"
 node-label:
@@ -142,7 +142,7 @@ private-registry: /etc/rancher/rke2/registries.yaml
 token: %%CLUSTER%%-token-asfebwadg
 system-default-registry: %%REGISTRY%%/%%STAGE%%/docker.io
 server: https://%%CLUSTER%%.%%DOMAIN%%:9345
-profile: cis-1.5
+profile: cis-1.6
 node-label:
   - "cluster=%%CLUSTER%%"
 EOF'
