@@ -76,10 +76,15 @@ function _INSTALL_RKE2 {
 	# ensure firewalld is stopped and disabled as this is not compatible with canal
 	sudo systemctl disable --now firewalld;
 	# install iptables because it is used in rke2-killall.sh
-	# install nfs-client for nfs-client-provisioner and longhorn and open-iscsi for longhorn
-	sudo zypper -n in iptables nfs-client open-iscsi
+        # storage-class requirements
+        # install nfs-client for nfs-client-provisioner and longhorn and open-iscsi for longhorn and ceph-common for ceph
+	if [ -f /usr/bin/zypper ]; then
+	        sudo zypper -n in iptables nfs-client open-iscsi ceph-common
+	fi
         # some deployments deliver PSP with apparmor support (i.e. cert-manager) - so installing it
-        sudo zypper -n in -t pattern apparmor
+	if [ -f /usr/bin/zypper ]; then
+        	sudo zypper -n in -t pattern apparmor
+	fi
 	# create target dir for configs of rke2
 	sudo mkdir -p /etc/rancher/rke2
 	# workaround in v1.19.7+rke2r1 for authentication for base images from on-premise registry with authentication
@@ -177,7 +182,9 @@ function _ADMIN_PREPARE {
 	# take helm3 from caasp 4.5 channels - needs to be replaced with helm3 delivery from "somewhere else"
 	#  sudo zypper -n in helm3
 	# use helm from binary
-	sudo zypper -n rm helm3
+	if [ -f /usr/bin/zypper ]; then
+		sudo zypper -n rm helm3
+	fi
 	sudo bash -c "if [ -f $RKECLUSTERDIR/helm-cli/helm ]; then cp $RKECLUSTERDIR/helm-cli/helm /usr/local/bin; chmod +x /usr/local/bin/helm; fi"
 	# profile settings for kubeconfig, crictl and binaries
 	# also hope that this will be part of the RPM
@@ -299,7 +306,13 @@ function _FIX_1_20_6 {
         # removing system-default-registry!
         if [ "$RKE2_VERSION" == "v1.20.6+rke2r1" ] ; then
         	sudo sed -i "/^system-default-registry:.*/d" /etc/rancher/rke2/config.yaml
-	        # todo: remove rancher system-default registry when on rancher cluster, too!
+	        # remove system-default registry and image paths
+		sudo sed -i "/$REGISTRY/d" $RKECLUSTERDIR/manifests/*.yaml
+		sudo sed -i "/image:/d" $RKECLUSTERDIR/manifests/*.yaml
+		sudo sed -i "/jobImage:/d" $RKECLUSTERDIR/manifests/*.yaml
+		sudo sed -i "/systemDefaultRegistry:/d" $RKECLUSTERDIR/manifests/*.yaml
+		sudo sed -i "/busyboxImage:/d" $RKECLUSTERDIR/manifests/*.yaml
+		sudo sed -i "/rancherImage:/d" $RKECLUSTERDIR/manifests/*.yaml
         fi
 }
 
@@ -327,7 +340,9 @@ function _COPY_MANIFESTS_AND_CHARTS {
 		# copy static charts
                 if [ ! -f /usr/bin/rsync ]; then
                         echo "rsync not installed but reqired - installing"
-                        sudo zypper -n in rsync
+			if [ -f /usr/bin/zypper ]; then
+                        	sudo zypper -n in rsync
+			fi
                 fi
 		sudo rsync -a --delete $RKECLUSTERDIR/charts/* /var/lib/rancher/rke2/server/static/charts
 		# delete old yaml files during changes & upgrades
