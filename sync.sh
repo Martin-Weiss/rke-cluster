@@ -5,12 +5,13 @@ if [ "$1" = "" ]; then
 fi
 CLUSTER_NODES=$(cat /srv/salt/rke-cluster/server.txt|grep $1 |grep -v hostname|cut -f1 -d ",")
 DOMAIN=$(cat /srv/salt/rke-cluster/server.txt|grep $1 |grep -v hostname|cut -f2 -d ","|uniq)
-echo "applying salt-state rke-cluster to: $CLUSTER_NODES"
-salt -L $(echo $CLUSTER_NODES|sed "s/ /.$DOMAIN,"/g) state.apply manager_org_1.rke-cluster
+CLUSTER_NODES_LIST=$(echo $CLUSTER_NODES|sed "s/ /.$DOMAIN,"/g)
+echo "applying salt-state rke-cluster to: $CLUSTER_NODES_LIST"
+salt -L $CLUSTER_NODES_LIST state.apply manager_org_1.rke-cluster
 for CLUSTER_NODE in $CLUSTER_NODES; do 
 	ROLE=$(grep $CLUSTER_NODE /srv/salt/rke-cluster/server.txt|cut -f6 -d ",")
 	echo "executing rke-cluster.sh on server $CLUSTER_NODE"
-	salt $CLUSTER_NODE.$DOMAIN "cmd.shell /home/rkeadmin/rke-cluster/rke-cluster.sh"
+	salt $CLUSTER_NODE.$DOMAIN cmd.shell "bash /home/rkeadmin/rke-cluster/rke-cluster.sh"
 	if [ "$2" == "nosleep" ]; then
 		echo "skip sleep"
 	else
