@@ -5,6 +5,8 @@ RKEGROUP="rkeadmin"
 RKECLUSTERDIR=/home/$RKEUSER/rke-cluster
 # on premise registry to be used (https will always be used)
 REGISTRY="registry01.suse:5000"
+# in case the registry does not support folders in namespaces put all images in this namespace and replace registries.yaml with registries.yaml.singlenamespace
+SINGLENAMESPACE="rke-cluster"
 # server.txt
 SERVERTXT="/home/$RKEUSER/rke-cluster/server.txt"
 # rancher cluster name

@@ -1,0 +1,30 @@
+mirrors:
+  docker.io:
+    endpoint:
+      - "https://%%REGISTRY%%/v2/"
+    rewrite:
+      ".*/(.*)": "%%SINGLENAMESPACE%%/%%STAGE%%/$1"
+  quay.io:
+    endpoint:
+      - "https://%%REGISTRY%%/v2/"
+    rewrite:
+      ".*/(.*)": "%%SINGLENAMESPACE%%/%%STAGE%%/$1"
+  gcr.io:
+    endpoint:
+      - "https://%%REGISTRY%%/v2/"
+    rewrite:
+      ".*/(.*)": "%%SINGLENAMESPACE%%/%%STAGE%%/$1"
+  k8s.gcr.io:
+    endpoint:
+      - "https://%%REGISTRY%%/v2/"
+    rewrite:
+      ".*/(.*)": "%%SINGLENAMESPACE%%/%%STAGE%%/$1"
+configs:
+  "%%REGISTRY%%":
+    auth:
+      username: %%USERNAME%% # this is the registry username
+      password: %%PASSWORD%% # this is the registry password
+    tls:
+      #suse# ca_file: /etc/ssl/ca-bundle.pem
+      ca_file: /etc/ssl/certs/ca-certificates.crt
+

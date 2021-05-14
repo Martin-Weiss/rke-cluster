@@ -10,6 +10,8 @@
 #		  - adjusted custom CA
 #		  - adjusted charts and manifest 
 #                   sources
+# v0.5 14.05.2021 Martin Weiss - Martin.Weiss@suse.com
+#		  - added support for ubuntu
 #
 # this script is used to create and upgrade rke2
 # clusters
@@ -81,9 +83,15 @@ function _INSTALL_RKE2 {
 	if [ -f /usr/bin/zypper ]; then
 	        sudo zypper -n in iptables nfs-client open-iscsi ceph-common
 	fi
+	if [ -f /usr/bin/apt-get ]; then
+	        sudo apt-get install iptables nfs-client open-iscsi ceph-common -y
+	fi
         # some deployments deliver PSP with apparmor support (i.e. cert-manager) - so installing it
 	if [ -f /usr/bin/zypper ]; then
         	sudo zypper -n in -t pattern apparmor
+	fi
+	if [ -f /usr/bin/apt-get ]; then
+        	sudo apt-get install apparmor -y
 	fi
 	# create target dir for configs of rke2
 	sudo mkdir -p /etc/rancher/rke2
@@ -145,6 +153,7 @@ server: https://%%CLUSTER%%.%%DOMAIN%%:9345
 profile: cis-1.6
 node-label:
   - "cluster=%%CLUSTER%%"
+  - "role=storage-node"
 EOF'
 }
 
@@ -166,6 +175,7 @@ function _PREPARE_REGISTRIES_YAML {
         sudo sed -i "s/%%USERNAME%%/$USERNAME/g" /etc/rancher/rke2/registries.yaml
         sudo sed -i "s/%%PASSWORD%%/$PASSWORD/g" /etc/rancher/rke2/registries.yaml
         sudo sed -i "s/%%REGISTRY%%/$REGISTRY/g" /etc/rancher/rke2/registries.yaml
+        sudo sed -i "s#%%SINGLENAMESPACE%%#$SINGLENAMESPACE#g" /etc/rancher/rke2/registries.yaml
 }
 
 function _PREPARE_DOCKER_CREDENTIALS {
@@ -188,7 +198,10 @@ function _ADMIN_PREPARE {
 	sudo bash -c "if [ -f $RKECLUSTERDIR/helm-cli/helm ]; then cp $RKECLUSTERDIR/helm-cli/helm /usr/local/bin; chmod +x /usr/local/bin/helm; fi"
 	# profile settings for kubeconfig, crictl and binaries
 	# also hope that this will be part of the RPM
-	sudo bash -c 'cat << EOF > /etc/profile.local
+	# for suse this was working
+	# sudo bash -c 'cat << EOF > /etc/profile.local
+	# for ubuntu adjusted to rancher.sh (need to test if this also works on suse)
+	sudo bash -c 'cat << EOF > /etc/profile.d/rancher.sh
 export KUBECONFIG=/etc/rancher/rke2/rke2.yaml
 export CRI_CONFIG_FILE=/var/lib/rancher/rke2/agent/etc/crictl.yaml
 export PATH=\$PATH:/var/lib/rancher/rke2/bin
@@ -342,6 +355,9 @@ function _COPY_MANIFESTS_AND_CHARTS {
                         echo "rsync not installed but reqired - installing"
 			if [ -f /usr/bin/zypper ]; then
                         	sudo zypper -n in rsync
+			fi
+			if [ -f /usr/bin/apt-get ]; then
+                        	sudo apt-get install rsync -y
 			fi
                 fi
 		sudo rsync -a --delete $RKECLUSTERDIR/charts/* /var/lib/rancher/rke2/server/static/charts

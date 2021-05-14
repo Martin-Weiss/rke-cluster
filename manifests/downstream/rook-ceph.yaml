@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: rook-ceph
+---
+apiVersion: helm.cattle.io/v1
+kind: HelmChart
+metadata:
+  name: rook-ceph
+  namespace: kube-system
+spec:
+  chart: https://%%CLUSTER%%.%%DOMAIN%%:9345/static/charts/rook-ceph-v1.6.2.tgz
+  jobImage: %%REGISTRY%%/%%STAGE%%/docker.io/rancher/klipper-helm:v0.4.3
+  targetNamespace: rook-ceph
+
