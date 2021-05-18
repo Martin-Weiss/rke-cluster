@@ -5,10 +5,10 @@ metadata:
   namespace: kube-system
 spec:
   valuesContent: |-
-    replicaCount: 3
     prometheus:
-      monitor:
-        enabled: true
+            # must not be enabled during deployment of cluster as monitoring crd is not yet available
+            #      monitor:
+            #        enabled: true
       service:
         enabled: true
     autoscaler:
