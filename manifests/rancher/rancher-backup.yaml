@@ -10,12 +10,12 @@ metadata:
   namespace: kube-system
 spec:
   jobImage: %%REGISTRY%%/%%STAGE%%/docker.io/rancher/klipper-helm:v0.4.3
-  chart: https://%%CLUSTER%%.%%DOMAIN%%:9345/static/charts/rancher-backup-v1.0.301.tgz
+  chart: https://%%CLUSTER%%.%%DOMAIN%%:9345/static/charts/rancher-backup-v1.0.400.tgz
   targetNamespace: cattle-resources-system
   valuesContent: |-
-    image:
-      repository: rancher/backup-restore-operator
-      tag: v1.0.3
+          #    image:
+          #      repository: rancher/backup-restore-operator
+          #     tag: v1.0.3
     
     ## Default s3 bucket for storing all backup files created by the backup-restore-operator
     s3:
