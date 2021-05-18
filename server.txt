@@ -8,6 +8,7 @@ rke-test-master-03,suse,v1.20.6+rke2r1,rke-test,rke-test,master,rke-test-cluster
 rke-test-worker-01,suse,v1.20.6+rke2r1,rke-test,rke-test,worker,rke-test-cluster,_Ey4sYq1wAyBUSfjcsQY
 rke-test-worker-02,suse,v1.20.6+rke2r1,rke-test,rke-test,worker,rke-test-cluster,_Ey4sYq1wAyBUSfjcsQY
 rke-test-worker-03,suse,v1.20.6+rke2r1,rke-test,rke-test,worker,rke-test-cluster,_Ey4sYq1wAyBUSfjcsQY
+rke-test-worker-04,suse,v1.20.6+rke2r1,rke-test,rke-test,worker,rke-test-cluster,_Ey4sYq1wAyBUSfjcsQY
 rke-int-master-01,suse,v1.19.10+rke2r1,rke-int,rke-int,master1,rke-int-cluster,F8RBf8NtmMqearESeZ43
 rke-int-master-02,suse,v1.19.10+rke2r1,rke-int,rke-int,master,rke-int-cluster,F8RBf8NtmMqearESeZ43
 rke-int-master-03,suse,v1.19.10+rke2r1,rke-int,rke-int,master,rke-int-cluster,F8RBf8NtmMqearESeZ43

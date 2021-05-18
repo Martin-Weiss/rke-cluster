@@ -11,10 +11,6 @@ spec:
         enabled: true
       service:
         enabled: true
-    affinity:
-      podAntiAffinity:
-        requiredDuringSchedulingIgnoredDuringExecution:
-        - topologyKey: kubernetes.io/hostname
-          labelSelector:
-            matchLabels:
-              k8s-app: kube-dns
+    autoscaler:
+      enabled: true
+      nodesPerReplica: 3
