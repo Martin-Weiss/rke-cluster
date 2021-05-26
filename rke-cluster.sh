@@ -317,7 +317,7 @@ function _FIX_1_20_DEPLOYMENT {
 function _FIX_1_20_6 {
         # this version should have working registry rewrite
         # removing system-default-registry!
-        if [ "$RKE2_VERSION" == "v1.20.6+rke2r1" ] ; then
+        if [ "$RKE2_VERSION" == "v1.20.6+rke2r1" ] || [ "$RKE2_VERSION" == "v1.20.7+rke2r1" ] || [ "$RKE2_VERSION" == "v1.20.7+rke2r2" ] ; then
         	sudo sed -i "/^system-default-registry:.*/d" /etc/rancher/rke2/config.yaml
 	        # remove system-default registry and image paths
 		sudo sed -i "/$REGISTRY/d" $RKECLUSTERDIR/manifests/*.yaml
@@ -326,6 +326,13 @@ function _FIX_1_20_6 {
 		sudo sed -i "/systemDefaultRegistry:/d" $RKECLUSTERDIR/manifests/*.yaml
 		sudo sed -i "/busyboxImage:/d" $RKECLUSTERDIR/manifests/*.yaml
 		sudo sed -i "/rancherImage:/d" $RKECLUSTERDIR/manifests/*.yaml
+        fi
+}
+
+function _FIX_1_20_7 {
+        if [ "$RKE2_VERSION" == "v1.20.7+rke2r1" ] || [ "$RKE2_VERSION" == "v1.20.7+rke2r2" ] ; then
+                echo "adding etcd user also on agents due to https://github.com/rancher/rke2/issues/1063"
+                sudo useradd -r -c "etcd user" -s /sbin/nologin -M etcd 2>&1 >/dev/null
         fi
 }
 
@@ -462,6 +469,7 @@ function _JOIN_CLUSTER {
 		_ADJUST_CLUSTER_IDENTITY
                 _FIX_1_20_DEPLOYMENT
                 _FIX_1_20_6
+		_FIX_1_20_7
                 sudo systemctl enable rke2-agent.service 2>&1 >/dev/null;
                 sudo systemctl restart rke2-agent.service 2>&1 >/dev/null;
 		_AGENT_PREPARE

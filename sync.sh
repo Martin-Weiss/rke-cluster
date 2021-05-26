@@ -5,7 +5,7 @@ if [ "$1" = "" ]; then
 fi
 CLUSTER_NODES=$(cat /srv/salt/rke-cluster/server.txt|grep $1 |grep -v hostname|cut -f1 -d ",")
 DOMAIN=$(cat /srv/salt/rke-cluster/server.txt|grep $1 |grep -v hostname|cut -f2 -d ","|uniq)
-CLUSTER_NODES_LIST=$(echo $CLUSTER_NODES|sed "s/ /.$DOMAIN,"/g)
+CLUSTER_NODES_LIST=$(for CLUSTER_NODE in $CLUSTER_NODES; do echo -n $CLUSTER_NODE.$DOMAIN,; done|sed 's/,$//g')
 echo "applying salt-state rke-cluster to: $CLUSTER_NODES_LIST"
 salt -L $CLUSTER_NODES_LIST state.apply manager_org_1.rke-cluster
 for CLUSTER_NODE in $CLUSTER_NODES; do 
