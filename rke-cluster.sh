@@ -338,12 +338,19 @@ function _FIX_1_20_7 {
 
 function _CILIUM_NOT_CANAL {
 	if echo $RKE2_VERSION |grep "v1.20.6" && [ -f $RKECLUSTERDIR/manifests/rke2-cilium.yaml ]; then
-		echo "Cilium Yaml exists and cluster version is 1.20.6"
+		echo "Cilium Yaml exists and cluster version is v1.20.6"
 		sudo sed -i "/^disable: rke2-canal/d" /etc/rancher/rke2/config.yaml
 		sudo bash -c 'echo "disable: rke2-canal" >>/etc/rancher/rke2/config.yaml'
 		sudo rm $RKECLUSTERDIR/manifests/rke2-canal*.yaml /var/lib/rancher/rke2/server/manifests/rke2-canal*.yaml
+	elif echo $RKE2_VERSION |grep "v1.20.7" && [ -f $RKECLUSTERDIR/manifests/rke2-cilium.yaml ]; then
+		echo "Cilium Yaml exists and cluster version is v1.20.7"
+		sudo sed -i "/^cni:/d" /etc/rancher/rke2/config.yaml
+		sudo bash -c 'echo "cni: cilium" >>/etc/rancher/rke2/config.yaml'
+		sudo rm $RKECLUSTERDIR/manifests/rke2-canal*.yaml /var/lib/rancher/rke2/server/manifests/rke2-canal*.yaml
+		# do not need this file in 1.20.7 anymore
+		sudo rm $RKECLUSTERDIR/manifests/rke2-cilium.yaml
 	else
-		echo "Cilium Yaml does not exist or cluster version is not v1.20.6"
+		echo "Cilium Yaml does not exist or cluster version is not v1.20.6 or v1.20.7"
 		sudo rm $RKECLUSTERDIR/manifests/rke2-cilium*.yaml*
 	fi
 }

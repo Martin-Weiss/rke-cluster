@@ -1,0 +1,17 @@
+apiVersion: helm.cattle.io/v1
+kind: HelmChartConfig
+metadata:
+  name: rancher-vsphere-cpi
+  namespace: kube-system
+spec:
+  valuesContent: |-
+    vCenter:
+      host: "vsphere.suse"
+      port: 443
+      insecureFlag: "1"
+      datacenters: "Datacenter1"
+      username: "terraform-kubernetes@vsphere.local"
+      password: "Suse1234!"
+      credentialsSecret:
+        name: "vsphere-cpi-creds"
+        generate: true
