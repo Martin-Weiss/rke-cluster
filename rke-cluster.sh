@@ -65,7 +65,10 @@ function _INSTALL_RKE2 {
 	# probably etcd user is only required on master?
 	if [ $NODETYPE == "master1" ] || [ $NODETYPE == "master" ] ; then
 		echo "creating etcd user on a master node"
-		sudo useradd -r -c "etcd user" -s /sbin/nologin -M etcd 2>&1 >/dev/null
+		sudo useradd -r -c "etcd user" -s /sbin/nologin -M etcd >/dev/null 2>&1
+		sudo groupadd etcd >/dev/null 2>&1
+		sudo usermod -g etcd etcd >/dev/null 2>&1
+		sudo chown -R etcd:etcd /var/lib/rancher/rke2/server/db/etcd
 	else
 		echo "not creating etcd user as we are not on a master node"
 	fi
