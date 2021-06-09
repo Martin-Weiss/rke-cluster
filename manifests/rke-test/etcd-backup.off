@@ -1,0 +1,48 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: etcd-backup
+  namespace: kube-system
+  labels:
+    jobgroup: backup
+spec:
+  template:
+    metadata:
+      name: etcd-backup
+      labels:
+        jobgroup: backup
+    spec:
+      containers:
+      - name: etcd-backup
+        image: docker.io/rancher/hardened-etcd:v3.4.13-k3s1-build20210223
+        env:
+        - name: ETCDCTL_API
+          value: "3"
+        command: ["/bin/sh"]
+        args: ["-c", "etcdctl --endpoints=https://127.0.0.1:2379 --cacert=/var/lib/rancher/rke2/server/tls/etcd/server-ca.crt --cert=/var/lib/rancher/rke2/server/tls/etcd/client.crt --key=/var/lib/rancher/rke2/server/tls/etcd/client.key snapshot save /backup/etcd-snapshot-$(date +%Y-%m-%d_%H:%M:%S_%Z).db"]
+        volumeMounts:
+        - mountPath: /var/lib/rancher/rke2/server/tls/etcd
+          name: etcd-certs
+          readOnly: true
+        - mountPath: /backup
+          name: etcd-backup
+      restartPolicy: OnFailure
+      nodeSelector:
+        node-role.kubernetes.io/master: "true"
+      tolerations:
+      - effect: NoSchedule
+        operator: Exists
+      - effect: NoExecute
+        key: CriticalAddonsOnly
+        value: "true"
+      hostNetwork: true
+      volumes:
+      - name: etcd-certs
+        hostPath:
+          path: /var/lib/rancher/rke2/server/tls/etcd
+          type: DirectoryOrCreate
+      - name: etcd-backup
+        nfs:
+          server: nfs01.suse
+          path: /srv/nfs/%%CLUSTER%%
+
