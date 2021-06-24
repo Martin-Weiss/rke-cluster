@@ -49,6 +49,11 @@ spec:
     prometheus:
       prometheusSpec:
         baseURL: "https://prometheus.%%CLUSTER%%.%%DOMAIN%%/"
+        resources:
+          limits:
+            memory: 3000Mi
+        requests:
+            memory: 1500Mi
       ingress:
         enabled: true
         annotations:
@@ -94,6 +99,12 @@ spec:
         storageClassName: vsphere
         subPath: null
         type: statefulset
+    prometheus-node-exporter:
+      resources:
+        limits:
+          memory: 100Mi
+        requests:
+          memory: 60Mi
     rke2ControllerManager:
       enabled: true
     rke2Etcd:

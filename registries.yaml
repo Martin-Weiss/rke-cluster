@@ -3,7 +3,7 @@ mirrors:
     endpoint:
       - "https://%%REGISTRY%%/v2/"
     rewrite:
-      "(.*)": "%%STAGE%%/docker.io/$1"
+      "^(?:library|)(.*)": "%%STAGE%%/docker.io/$1"
   quay.io:
     endpoint:
       - "https://%%REGISTRY%%/v2/"

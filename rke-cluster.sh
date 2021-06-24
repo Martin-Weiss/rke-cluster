@@ -484,6 +484,9 @@ function _JOIN_CLUSTER {
                 sudo systemctl restart rke2-agent.service 2>&1 >/dev/null;
 		_AGENT_PREPARE
 		echo "Verify with:  sudo journalctl -u rke2-agent -f"
+        else
+                echo "We are not on a master or worker so deploying only admin tools"
+                _ADMIN_PREPARE
 	fi
 }
 
