@@ -333,7 +333,7 @@ function _FIX_1_20_6 {
 }
 
 function _FIX_1_20_7 {
-        if [ "$RKE2_VERSION" == "v1.20.7+rke2r1" ] || [ "$RKE2_VERSION" == "v1.20.7+rke2r2" ] ; then
+        if [ "$RKE2_VERSION" == "v1.20.7+rke2r1" ] || [ "$RKE2_VERSION" == "v1.20.7+rke2r2" ] || [ "$RKE2_VERSION" == "v1.20.8+rke2r1" ] || [ "$RKE2_VERSION" == "v1.21.2+rke2r1" ] ; then
                 echo "adding etcd user also on agents due to https://github.com/rancher/rke2/issues/1063"
                 sudo useradd -r -c "etcd user" -s /sbin/nologin -M etcd 2>&1 >/dev/null
         fi
@@ -427,6 +427,7 @@ function _ADJUST_CLUSTER_IDENTITY {
         	sudo sed -i "s#%%CLUSTERCIDR%%#$CLUSTERCIDR#g" /etc/rancher/rke2/config.yaml
         	sudo sed -i "s#%%SERVICECIDR%%#$SERVICECIDR#g" /etc/rancher/rke2/config.yaml
         	sudo sed -i "s/%%CLUSTERDNS%%/$CLUSTERDNS/g" /etc/rancher/rke2/config.yaml
+		# todo: add enhancement to use out of tree vsphere provisioner instead (from 1.20.8 or newer on)
 		if [ -f /etc/rancher/rke2/vsphere.conf ]; then 
 			echo "adjust vsphere.conf as it exists"
 	                sudo sed -i "s/%%CLUSTER%%/$CLUSTER/g" /etc/rancher/rke2/vsphere.conf

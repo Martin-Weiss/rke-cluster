@@ -10,7 +10,7 @@ metadata:
   namespace: kube-system
 spec:
   jobImage: %%REGISTRY%%/%%STAGE%%/docker.io/rancher/klipper-helm:v0.4.3
-  chart: https://%%CLUSTER%%.%%DOMAIN%%:9345/static/charts/cert-manager-v1.3.0.tgz
+  chart: https://%%CLUSTER%%.%%DOMAIN%%:9345/static/charts/cert-manager-v1.4.0.tgz
   targetNamespace: cert-manager
   valuesContent: |-
     global:
