@@ -320,7 +320,7 @@ function _FIX_1_20_DEPLOYMENT {
 function _FIX_1_20_6 {
         # this version should have working registry rewrite
         # removing system-default-registry!
-        if [ "$RKE2_VERSION" == "v1.20.6+rke2r1" ] || [ "$RKE2_VERSION" == "v1.20.7+rke2r1" ] || [ "$RKE2_VERSION" == "v1.20.7+rke2r2" ] ; then
+        if [ "$RKE2_VERSION" == "v1.20.6+rke2r1" ] || [ "$RKE2_VERSION" == "v1.20.7+rke2r1" ] || [ "$RKE2_VERSION" == "v1.20.7+rke2r2" ] || [ "$RKE2_VERSION" == "v1.20.7+rke2r1" ] || [ "$RKE2_VERSION" == "v1.20.8+rke2r1" ] || [ "$RKE2_VERSION" == "v1.21.2+rke2r1" ] ; then
         	sudo sed -i "/^system-default-registry:.*/d" /etc/rancher/rke2/config.yaml
 	        # remove system-default registry and image paths
 		sudo sed -i "/$REGISTRY/d" $RKECLUSTERDIR/manifests/*.yaml
