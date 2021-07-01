@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: metallb
+---
+apiVersion: helm.cattle.io/v1
+kind: HelmChart
+metadata:
+  name: metallb
+  namespace: kube-system
+spec:
+  jobImage: %%REGISTRY%%/%%STAGE%%/docker.io/rancher/klipper-helm:v0.4.3
+  chart: https://%%CLUSTER%%.%%DOMAIN%%:9345/static/charts/metallb-v0.10.2.tgz
+  targetNamespace: metallb
+  valuesContent: |-
+    configInline:
+      address-pools:
+      - name: default
+        protocol: layer2
+        addresses:
+        - 10.101.1.100-10.101.1.199
+    prometheus:
+      podMonitor:
+        enabled: true
+      prometheusRule:
+        enabled: true
