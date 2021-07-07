@@ -4,7 +4,7 @@ metadata:
   name: rke2-cilium
   namespace: kube-system
 spec:
-  chart: https://%%CLUSTER%%.%%DOMAIN%%:9345/static/charts/rke2-cilium-v1.9.604.tgz
+  chart: https://%%CLUSTER%%.%%DOMAIN%%:9345/static/charts/rke2-cilium-v1.9.808.tgz
   bootstrap: true
   valuesContent: |-
     cilium:

@@ -19,6 +19,11 @@ mirrors:
       - "https://%%REGISTRY%%/v2/"
     rewrite:
       "(.*)": "%%STAGE%%/k8s.gcr.io/$1"
+  registry.opensource.zalan.do:
+    endpoint:
+      - "https://%%REGISTRY%%/v2/"
+    rewrite:
+      "(.*)": "%%STAGE%%/registry.opensource.zalan.do/$1"
 configs:
   "%%REGISTRY%%":
     auth:
