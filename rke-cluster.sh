@@ -321,14 +321,21 @@ function _FIX_1_20_6 {
         # this version should have working registry rewrite
         # removing system-default-registry!
         if [ "$RKE2_VERSION" == "v1.20.6+rke2r1" ] || [ "$RKE2_VERSION" == "v1.20.7+rke2r1" ] || [ "$RKE2_VERSION" == "v1.20.7+rke2r2" ] || [ "$RKE2_VERSION" == "v1.20.7+rke2r1" ] || [ "$RKE2_VERSION" == "v1.20.8+rke2r1" ] || [ "$RKE2_VERSION" == "v1.21.2+rke2r1" ] ; then
-        	sudo sed -i "/^system-default-registry:.*/d" /etc/rancher/rke2/config.yaml
-	        # remove system-default registry and image paths
-		sudo sed -i "/$REGISTRY/d" $RKECLUSTERDIR/manifests/*.yaml
-		sudo sed -i "/image:/d" $RKECLUSTERDIR/manifests/*.yaml
-		sudo sed -i "/jobImage:/d" $RKECLUSTERDIR/manifests/*.yaml
-		sudo sed -i "/systemDefaultRegistry:/d" $RKECLUSTERDIR/manifests/*.yaml
-		sudo sed -i "/busyboxImage:/d" $RKECLUSTERDIR/manifests/*.yaml
-		sudo sed -i "/rancherImage:/d" $RKECLUSTERDIR/manifests/*.yaml
+                # remove system-default registry
+                sudo sed -i "/^system-default-registry:.*/d" /etc/rancher/rke2/config.yaml
+                sudo sed -i "s/systemDefaultRegistry:.*/systemDefaultRegistry: \"\"/g" $RKECLUSTERDIR/manifests/*.yaml
+                # remove job image as with rewrite this comes from the registry
+                sudo sed -i "/jobImage:/d" $RKECLUSTERDIR/manifests/*.yaml
+                # remove registry and stage because this is now on the registries.yaml rewrite
+                sudo sed -i "s#$REGISTRY/$STAGE/##g" $RKECLUSTERDIR/manifests/*.yaml
+                # remove image paths - not working because some helm charts do not have the defaults
+                #sudo sed -i "/$REGISTRY/d" $RKECLUSTERDIR/manifests/*.yaml
+                #sudo sed -i "/image:/d" $RKECLUSTERDIR/manifests/*.yaml
+                #sudo sed -i "/repository:/d" $RKECLUSTERDIR/manifests/*.yaml
+                # remove images from rancher manifests
+                sudo sed -i "/busyboxImage:/d" $RKECLUSTERDIR/manifests/*.yaml
+                sudo sed -i "/rancherImage:/d" $RKECLUSTERDIR/manifests/*.yaml
+                sudo rm /var/lib/rancher/rke2/agent/images/rke2-images.linux-amd64.tar.zst
         fi
 }
 
@@ -345,15 +352,15 @@ function _CILIUM_NOT_CANAL {
 		sudo sed -i "/^disable: rke2-canal/d" /etc/rancher/rke2/config.yaml
 		sudo bash -c 'echo "disable: rke2-canal" >>/etc/rancher/rke2/config.yaml'
 		sudo rm $RKECLUSTERDIR/manifests/rke2-canal*.yaml /var/lib/rancher/rke2/server/manifests/rke2-canal*.yaml
-	elif echo $RKE2_VERSION |grep "v1.20.7" || echo $RKE2_VERSION |grep "v1.20.8" && [ -f $RKECLUSTERDIR/manifests/rke2-cilium.yaml ]; then
-		echo "Cilium Yaml exists and cluster version is v1.20.7 or v1.20.8"
+	elif echo $RKE2_VERSION |grep "v1.20.7" || echo $RKE2_VERSION |grep "v1.20.8" || echo $RKE2_VERSION |grep "v1.21.2" && [ -f $RKECLUSTERDIR/manifests/rke2-cilium.yaml ]; then
+		echo "Cilium Yaml exists and cluster version is v1.20.7 or v1.20.8 or v1.21.2"
 		sudo sed -i "/^cni:/d" /etc/rancher/rke2/config.yaml
 		sudo bash -c 'echo "cni: cilium" >>/etc/rancher/rke2/config.yaml'
 		sudo rm $RKECLUSTERDIR/manifests/rke2-canal*.yaml /var/lib/rancher/rke2/server/manifests/rke2-canal*.yaml
-		# do not need this file in 1.20.7 anymore
+		# do not need this file in 1.20.7 or newer, anymore
 		sudo rm $RKECLUSTERDIR/manifests/rke2-cilium.yaml
 	else
-		echo "Cilium Yaml does not exist or cluster version is not v1.20.6 or v1.20.7 or v1.20.8"
+		echo "Cilium Yaml does not exist or cluster version is not v1.20.6 or v1.20.7 or v1.20.8 or v1.21.2"
 		sudo rm $RKECLUSTERDIR/manifests/rke2-cilium*.yaml*
 	fi
 }
@@ -409,6 +416,7 @@ function _COPY_MANIFESTS_AND_CHARTS {
                 if [ ! "$RKE2_VERSION" == "v1.19.7+rke2r1" ] ; then
 			sudo sed -i 's/klipper-helm:v0.4.3/klipper-helm:v0.4.3-build20210225/g' $RKECLUSTERDIR/manifests/*.yaml*
 		fi
+		_FIX_1_20_6
 		# just to the first master for the moment as the recognition on "identical" is not based on file content / md5sum or similar
 		if [ "$FIRSTMASTER" == "1" ]; then
 			echo "copy manifests only on first master until we have better solution to apply only once"
