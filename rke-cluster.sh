@@ -89,6 +89,10 @@ function _INSTALL_RKE2 {
 	if [ -f /usr/bin/apt-get ]; then
 	        sudo apt-get install iptables nfs-client open-iscsi ceph-common -y
 	fi
+
+	# start and enable iscsid (required for longhorn) - realized this problem in RKE2 1.21.2+Longhorn 1.1.2+SLES15SP3
+	sudo systemctl enable --now iscsid
+
         # some deployments deliver PSP with apparmor support (i.e. cert-manager) - so installing it
 	if [ -f /usr/bin/zypper ]; then
         	sudo zypper -n in -t pattern apparmor

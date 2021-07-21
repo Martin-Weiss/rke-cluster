@@ -24,6 +24,11 @@ mirrors:
       - "https://%%REGISTRY%%/v2/"
     rewrite:
       "(.*)": "%%STAGE%%/registry.opensource.zalan.do/$1"
+  registry.suse.com:
+    endpoint:
+      - "https://%%REGISTRY%%/v2/"
+    rewrite:
+      "(.*)": "%%STAGE%%/registry.suse.com/$1"
 configs:
   "%%REGISTRY%%":
     auth:
