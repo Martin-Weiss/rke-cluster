@@ -23,7 +23,7 @@ PRIORITY_IONICE="idle" # lowest
 
 setup() {
 
-  TMPDIR=$(mktemp -d $MKTEMP_BASEDIR)
+  TMPDIR=$(mktemp -d $MKTEMP_BASEDIR) || { techo 'Creating temporary directory failed, please check options'; exit 1; }
   techo "Created ${TMPDIR}"
 
 }
@@ -237,6 +237,7 @@ networking() {
     ip addr show > $TMPDIR/networking/ipaddrshow 2>&1
     ip route show table all > $TMPDIR/networking/iproute 2>&1
     ip rule show > $TMPDIR/networking/iprule 2>&1
+    ip -s link show > $TMPDIR/networking/iplinkshow 2>&1
   fi
   if $(command -v ifconfig >/dev/null 2>&1); then
     ifconfig -a > $TMPDIR/networking/ifconfiga
@@ -324,7 +325,7 @@ rke-k8s() {
   # Discover any server or agent running
   mkdir -p $TMPDIR/rancher/{containerlogs,containerinspect}
   RANCHERSERVERS=$(docker ps -a | grep -E "k8s_rancher_rancher|rancher/rancher:|rancher/rancher " | awk '{ print $1 }')
-  RANCHERAGENTS=$(docker ps -a | grep -E "rancher/rancher-agent:|rancher/rancher-agent " | awk '{ print $1 }')
+  RANCHERAGENTS=$(docker ps -a | grep -E "k8s_agent_cattle|rancher/rancher-agent:|rancher/rancher-agent " | awk '{ print $1 }')
 
   for RANCHERSERVER in $RANCHERSERVERS; do
     docker inspect $RANCHERSERVER > $TMPDIR/rancher/containerinspect/server-$RANCHERSERVER 2>&1
@@ -472,6 +473,15 @@ var-log() {
   techo "Collecting system logs from /var/log"
   mkdir -p $TMPDIR/systemlogs
   cp -p /var/log/syslog* /var/log/messages* /var/log/kern* /var/log/docker* /var/log/system-docker* /var/log/cloud-init* /var/log/audit/* $TMPDIR/systemlogs 2>/dev/null
+
+  for STAT_PACKAGE in sysstat atop
+    do
+      if [ -d /var/log/${STAT_PACKAGE} ]
+        then
+          mkdir -p $TMPDIR/systemlogs/${STAT_PACKAGE}-data
+          find /var/log/${STAT_PACKAGE} -mtime -14 -exec cp -p {} $TMPDIR/systemlogs/${STAT_PACKAGE}-data \;
+      fi
+  done
 
 }
 
