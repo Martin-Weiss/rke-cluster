@@ -324,7 +324,7 @@ function _FIX_1_20_DEPLOYMENT {
 function _FIX_1_20_6 {
         # this version should have working registry rewrite
         # removing system-default-registry!
-        if [ "$RKE2_VERSION" == "v1.20.6+rke2r1" ] || [ "$RKE2_VERSION" == "v1.20.7+rke2r1" ] || [ "$RKE2_VERSION" == "v1.20.7+rke2r2" ] || [ "$RKE2_VERSION" == "v1.20.7+rke2r1" ] || [ "$RKE2_VERSION" == "v1.20.8+rke2r1" ] || [ "$RKE2_VERSION" == "v1.21.2+rke2r1" ] ; then
+        if [ "$RKE2_VERSION" == "v1.20.6+rke2r1" ] || [ "$RKE2_VERSION" == "v1.20.7+rke2r1" ] || [ "$RKE2_VERSION" == "v1.20.7+rke2r2" ] || [ "$RKE2_VERSION" == "v1.20.7+rke2r1" ] || [ "$RKE2_VERSION" == "v1.20.8+rke2r1" ] || [ "$RKE2_VERSION" == "v1.20.9+rke2r1" ] || [ "$RKE2_VERSION" == "v1.20.10+rke2r1" ] || [ "$RKE2_VERSION" == "v1.20.11+rke2r1" ] || [ "$RKE2_VERSION" == "v1.21.2+rke2r1" ] || [ "$RKE2_VERSION" == "v1.21.3+rke2r1" ] || [ "$RKE2_VERSION" == "v1.21.4+rke2r3" ] ; then
                 # remove system-default registry
                 sudo sed -i "/^system-default-registry:.*/d" /etc/rancher/rke2/config.yaml
                 sudo sed -i "s/systemDefaultRegistry:.*/systemDefaultRegistry: \"\"/g" $RKECLUSTERDIR/manifests/*.yaml
@@ -356,15 +356,15 @@ function _CILIUM_NOT_CANAL {
 		sudo sed -i "/^disable: rke2-canal/d" /etc/rancher/rke2/config.yaml
 		sudo bash -c 'echo "disable: rke2-canal" >>/etc/rancher/rke2/config.yaml'
 		sudo rm $RKECLUSTERDIR/manifests/rke2-canal*.yaml /var/lib/rancher/rke2/server/manifests/rke2-canal*.yaml
-	elif echo $RKE2_VERSION |grep "v1.20.7" || echo $RKE2_VERSION |grep "v1.20.8" || echo $RKE2_VERSION |grep "v1.21.2" && [ -f $RKECLUSTERDIR/manifests/rke2-cilium.yaml ]; then
-		echo "Cilium Yaml exists and cluster version is v1.20.7 or v1.20.8 or v1.21.2"
+	elif echo $RKE2_VERSION |grep "v1.20.7" || echo $RKE2_VERSION |grep "v1.20.8" || echo $RKE2_VERSION |grep "v1.20.9" || echo $RKE2_VERSION |grep "v1.20.10" || echo $RKE2_VERSION |grep "v1.20.11" || echo $RKE2_VERSION |grep "v1.21.2" || echo $RKE2_VERSION |grep "v1.21.3" || echo $RKE2_VERSION |grep "v1.21.4" && [ -f $RKECLUSTERDIR/manifests/rke2-cilium.yaml ]; then
+		echo "Cilium Yaml exists and cluster version is v1.20.7-v1.20.11 or v1.21.2-v1.21.4"
 		sudo sed -i "/^cni:/d" /etc/rancher/rke2/config.yaml
 		sudo bash -c 'echo "cni: cilium" >>/etc/rancher/rke2/config.yaml'
 		sudo rm $RKECLUSTERDIR/manifests/rke2-canal*.yaml /var/lib/rancher/rke2/server/manifests/rke2-canal*.yaml
 		# do not need this file in 1.20.7 or newer, anymore
 		sudo rm $RKECLUSTERDIR/manifests/rke2-cilium.yaml
 	else
-		echo "Cilium Yaml does not exist or cluster version is not v1.20.6 or v1.20.7 or v1.20.8 or v1.21.2"
+		echo "Cilium Yaml does not exist or cluster version is not v1.20.7-v1.20.11 or v1.21.2-v1.21.4"
 		sudo rm $RKECLUSTERDIR/manifests/rke2-cilium*.yaml*
 	fi
 }

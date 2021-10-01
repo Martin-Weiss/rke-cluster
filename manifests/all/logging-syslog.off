@@ -1,0 +1,57 @@
+apiVersion: logging.banzaicloud.io/v1beta1
+kind: Logging
+metadata:
+  labels:
+    app.kubernetes.io/instance: logging-systemd
+    app.kubernetes.io/name: logging-systemd
+  name: logging-systemd
+  namespace: cattle-logging-system
+spec:
+  controlNamespace: cattle-logging-system
+  fluentbit:
+    image:
+      repository: docker.io/rancher/mirrored-fluent-fluent-bit
+      tag: 1.6.10
+    inputTail:
+      Parser: systemd
+      Path: /var/log/syslog
+      Path_Key: rke-test_syslog
+      Tag: rke-test_syslog
+    nodeSelector:
+      kubernetes.io/os: linux
+    security:
+      podSecurityPolicyCreate: true
+      roleBasedAccessControlCreate: true
+    tolerations:
+    - effect: NoSchedule
+      key: cattle.io/os
+      operator: Equal
+      value: linux
+    - effect: NoSchedule
+      key: node-role.kubernetes.io/controlplane
+      value: "true"
+    - effect: NoExecute
+      key: node-role.kubernetes.io/etcd
+      value: "true"
+  fluentd:
+    configReloaderImage:
+      repository: docker.io/rancher/mirrored-jimmidyson-configmap-reload
+      tag: v0.4.0
+    disablePvc: true
+    image:
+      repository: docker.io/rancher/mirrored-banzaicloud-fluentd
+      tag: v1.11.5-alpine-12
+    livenessProbe:
+      initialDelaySeconds: 30
+      periodSeconds: 15
+      tcpSocket:
+        port: 24240
+    nodeSelector:
+      kubernetes.io/os: linux
+    security:
+      podSecurityPolicyCreate: true
+      roleBasedAccessControlCreate: true
+    tolerations:
+    - effect: NoSchedule
+      key: cattle.io/os
+      operator: Equal

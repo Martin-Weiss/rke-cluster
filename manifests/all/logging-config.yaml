@@ -18,7 +18,10 @@ items:
         timekey_use_utc: true
         timekey_wait: 10s
       format:
-        type: json
+        app_name_field: kubernetes.pod_name
+        hostname_field: cluster
+        log_field: message
+        rfc6587_message_size: false
       host: syslog01.suse
       insecure: true
       port: 514
@@ -33,6 +36,10 @@ items:
     name: syslog01.suse
     namespace: cattle-logging-system
   spec:
+    filters:
+    - record_transformer:
+      records:
+      - cluster: %%CLUSTER%%
     globalOutputRefs:
     - syslog01.suse
 kind: List
