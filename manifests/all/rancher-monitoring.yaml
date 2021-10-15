@@ -46,6 +46,7 @@ spec:
         - secretName: alertmanager-general-tls
           hosts:
           - alertmanager.%%CLUSTER%%.%%DOMAIN%%
+        pathType: ImplementationSpecific
     prometheus:
       prometheusSpec:
         baseURL: "https://prometheus.%%CLUSTER%%.%%DOMAIN%%/"
@@ -77,6 +78,7 @@ spec:
         - secretName: prometheus-general-tls
           hosts:
           - prometheus.%%CLUSTER%%.%%DOMAIN%%
+        pathType: ImplementationSpecific
     grafana:
       adminPassword: suse1234
       ingress:
@@ -90,6 +92,7 @@ spec:
         - secretName: grafana-general-tls
           hosts:
           - grafana.%%CLUSTER%%.%%DOMAIN%%
+        pathType: ImplementationSpecific
       persistence:
         accessModes:
         - ReadWriteOnce
