@@ -350,6 +350,14 @@ function _FIX_1_20_7 {
         fi
 }
 
+function _FIX_1_20_11 {
+        if echo $RKE2_VERSION |grep "v1.20.11" ; then
+                echo "remove rke2-kube-proxy-config.yaml as the deployment method for kube proxy changed"
+		sudo rm $RKECLUSTERDIR/manifests/rke2-kube-proxy-config.yaml
+		sudo rm /var/lib/rancher/rke2/server/manifests/rke2-kube-proxy-config.yaml
+        fi
+}
+
 function _CILIUM_NOT_CANAL {
 	if echo $RKE2_VERSION |grep "v1.20.6" && [ -f $RKECLUSTERDIR/manifests/rke2-cilium.yaml ]; then
 		echo "Cilium Yaml exists and cluster version is v1.20.6"
@@ -421,6 +429,7 @@ function _COPY_MANIFESTS_AND_CHARTS {
 			sudo sed -i 's/klipper-helm:v0.4.3/klipper-helm:v0.4.3-build20210225/g' $RKECLUSTERDIR/manifests/*.yaml*
 		fi
 		_FIX_1_20_6
+		_FIX_1_20_11
 		# just to the first master for the moment as the recognition on "identical" is not based on file content / md5sum or similar
 		if [ "$FIRSTMASTER" == "1" ]; then
 			echo "copy manifests only on first master until we have better solution to apply only once"
