@@ -98,6 +98,13 @@ spec:
         storageClassName: vsphere
         subPath: null
         type: statefulset
+      sidecar:
+        dashboards:
+          searchNamespace: ALL
+        datasources:
+          searchNamespace: ALL
+      initChownData:
+        enabled: false
     prometheus-node-exporter:
       resources:
         limits:
