@@ -19,7 +19,7 @@ items:
         timekey_wait: 10s
       format:
         app_name_field: kubernetes.pod_name
-        hostname_field: cluster
+        hostname_field: custom-cluster-name
         log_field: message
         rfc6587_message_size: false
       host: syslog01.suse
@@ -38,8 +38,8 @@ items:
   spec:
     filters:
     - record_transformer:
-      records:
-      - cluster: %%CLUSTER%%
+        records:
+        - custom-cluster-name: %%CLUSTER%%
     globalOutputRefs:
     - syslog01.suse
 kind: List

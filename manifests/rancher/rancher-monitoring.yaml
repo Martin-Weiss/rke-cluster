@@ -101,8 +101,14 @@ spec:
       sidecar:
         dashboards:
           searchNamespace: ALL
+          provider:
+            disableDelete: false
+            allowUiUpdates: true
         datasources:
           searchNamespace: ALL
+          provider:
+            disableDelete: false
+            allowUiUpdates: true
       initChownData:
         enabled: false
     prometheus-node-exporter:
