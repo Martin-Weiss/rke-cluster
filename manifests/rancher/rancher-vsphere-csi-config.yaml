@@ -5,6 +5,9 @@ metadata:
   namespace: kube-system
 spec:
   valuesContent: |-
+    csiController:
+      nodeSelector:
+        node-role.kubernetes.io/control-plane: "true"
     vCenter:
       host: "vsphere.suse"
       port: 443
@@ -30,7 +33,7 @@ spec:
     storageClass:
       enabled: true
       name: "vsphere"
-      isDefault: true
+      isDefault: false
       storagePolicyName: ""
       datastoreURL: ""
 

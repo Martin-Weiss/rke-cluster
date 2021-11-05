@@ -451,7 +451,20 @@ function _ADJUST_CLUSTER_IDENTITY {
         	sudo sed -i "s#%%CLUSTERCIDR%%#$CLUSTERCIDR#g" /etc/rancher/rke2/config.yaml
         	sudo sed -i "s#%%SERVICECIDR%%#$SERVICECIDR#g" /etc/rancher/rke2/config.yaml
         	sudo sed -i "s/%%CLUSTERDNS%%/$CLUSTERDNS/g" /etc/rancher/rke2/config.yaml
-		# todo: add enhancement to use out of tree vsphere provisioner instead (from 1.20.8 or newer on)
+}
+
+function _VSPHERE_CONFIG {
+		# use out of tree vsphere if cpi and csi configs are available -> requires RKE2 >1.20.8!
+		if [ -f $RKECLUSTERDIR/manifests/rancher-vsphere-cpi-config.yaml ] && [ $RKECLUSTERDIR/manifests/rancher-vsphere-csi-config.yaml ]; then
+			echo "Using out-of-tree vsphere CSI and CPI"
+			sudo sed -i 's/cloud-provider-name: vsphere/cloud-provider-name: rancher-vsphere/g' /etc/rancher/rke2/config.yaml
+			sudo sed -i '/cloud-provider-config: \/etc\/rancher\/rke2\/vsphere.conf/d' /etc/rancher/rke2/config.yaml
+			sudo rm /etc/rancher/rke2/vsphere.conf
+			sudo rm $RKECLUSTERDIR/manifests/vsphere-storageclass.yaml
+			sudo rm /var/lib/rancher/rke2/server/manifests/vsphere-storageclass.yaml
+		else
+			echo "Not using out-of-tree vsphere CSI and CPI"
+		fi
 		if [ -f /etc/rancher/rke2/vsphere.conf ]; then 
 			echo "adjust vsphere.conf as it exists"
 	                sudo sed -i "s/%%CLUSTER%%/$CLUSTER/g" /etc/rancher/rke2/vsphere.conf
@@ -472,6 +485,7 @@ function _JOIN_CLUSTER {
                 _PREPARE_RKE2_CLOUD_CONFIG
 		_COPY_MANIFESTS_AND_CHARTS
 		_ADJUST_CLUSTER_IDENTITY
+		_VSPHERE_CONFIG
                 _FIX_1_20_DEPLOYMENT
                 _FIX_1_20_6
                 sudo sed -i "/^server/d" /etc/rancher/rke2/config.yaml
@@ -488,6 +502,7 @@ function _JOIN_CLUSTER {
                 _PREPARE_RKE2_CLOUD_CONFIG
 		_COPY_MANIFESTS_AND_CHARTS
 		_ADJUST_CLUSTER_IDENTITY
+		_VSPHERE_CONFIG
                 _FIX_1_20_DEPLOYMENT
                 _FIX_1_20_6
                 sudo systemctl enable rke2-server.service 2>&1 >/dev/null;
@@ -502,6 +517,7 @@ function _JOIN_CLUSTER {
                 _PREPARE_RKE2_AGENT_CONFIG
                 _PREPARE_RKE2_CLOUD_CONFIG
 		_ADJUST_CLUSTER_IDENTITY
+		_VSPHERE_CONFIG
                 _FIX_1_20_DEPLOYMENT
                 _FIX_1_20_6
 		_FIX_1_20_7

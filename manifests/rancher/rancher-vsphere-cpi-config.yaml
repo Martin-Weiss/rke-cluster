@@ -5,6 +5,9 @@ metadata:
   namespace: kube-system
 spec:
   valuesContent: |-
+    cloudControllerManager:
+      nodeSelector:
+        node-role.kubernetes.io/control-plane: "true"
     vCenter:
       host: "vsphere.suse"
       port: 443
