@@ -76,7 +76,9 @@ function _INSTALL_RKE2 {
 	# in case we use cilium as CNI the restart of this service will cause network to stop working - see https://github.com/rancher/rke2/issues/2021
 	# so try to workaround with sysctl --system instead
 	#sudo systemctl restart systemd-sysctl 2>&1 >/dev/null
-	sudo /sbin/sysctl --system 2>&1 >/dev/null
+	# also this seems to "kill" cilium so changing to "only apply rke2-cis-sysctl.conf"
+	#sudo /sbin/sysctl --system 2>&1 >/dev/null
+	sudo /sbin/sysctl -p /usr/local/share/rke2/rke2-cis-sysctl.conf
 	# copy systemd unit files to etc due to "reboot not starting the service in case /usr/local is not part of the root filesystem"
 	sudo cp /usr/local/lib/systemd/system/rke2-agent.service /etc/systemd/system/rke2-agent.service
 	sudo cp /usr/local/lib/systemd/system/rke2-server.service /etc/systemd/system/rke2-server.service
