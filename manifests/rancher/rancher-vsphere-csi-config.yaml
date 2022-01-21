@@ -8,6 +8,9 @@ spec:
     csiController:
       nodeSelector:
         node-role.kubernetes.io/control-plane: "true"
+      tolerations:
+        - key: "CriticalAddonsOnly"
+          operator: "Exists"
     vCenter:
       host: "vsphere.suse"
       port: 443
