@@ -1,31 +1,43 @@
 mirrors:
   docker.io:
     endpoint:
+      - "https://%%REGISTRY2%%/v2/"
+      - "https://%%REGISTRY%%/v2/"
+    rewrite:
+      "^(?:library|)(.*)": "%%STAGE%%/docker.io/$1"
+  index.docker.io:
+    endpoint:
+      - "https://%%REGISTRY2%%/v2/"
       - "https://%%REGISTRY%%/v2/"
     rewrite:
       "^(?:library|)(.*)": "%%STAGE%%/docker.io/$1"
   quay.io:
     endpoint:
+      - "https://%%REGISTRY2%%/v2/"
       - "https://%%REGISTRY%%/v2/"
     rewrite:
       "(.*)": "%%STAGE%%/quay.io/$1"
   gcr.io:
     endpoint:
+      - "https://%%REGISTRY2%%/v2/"
       - "https://%%REGISTRY%%/v2/"
     rewrite:
       "(.*)": "%%STAGE%%/gcr.io/$1"
   k8s.gcr.io:
     endpoint:
+      - "https://%%REGISTRY2%%/v2/"
       - "https://%%REGISTRY%%/v2/"
     rewrite:
       "(.*)": "%%STAGE%%/k8s.gcr.io/$1"
   registry.opensource.zalan.do:
     endpoint:
+      - "https://%%REGISTRY2%%/v2/"
       - "https://%%REGISTRY%%/v2/"
     rewrite:
       "(.*)": "%%STAGE%%/registry.opensource.zalan.do/$1"
   registry.suse.com:
     endpoint:
+      - "https://%%REGISTRY2%%/v2/"
       - "https://%%REGISTRY%%/v2/"
     rewrite:
       "(.*)": "%%STAGE%%/registry.suse.com/$1"
@@ -36,3 +48,10 @@ configs:
       password: %%PASSWORD%% # this is the registry password
     tls:
       ca_file: /etc/ssl/ca-bundle.pem
+  "%%REGISTR2%%":
+    auth:
+      username: %%USERNAME2%% # this is the registry username
+      password: %%PASSWORD2%% # this is the registry password
+    tls:
+      ca_file: /etc/ssl/ca-bundle.pem
+

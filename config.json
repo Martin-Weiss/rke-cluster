@@ -5,9 +5,16 @@
                 },
                 "%%REGISTRY%%": {
                         "auth": "%%CREDS%%"
+                },
+                "https://%%REGISTRY2%%": {
+                        "auth": "%%CREDS2%%"
+                },
+                "%%REGISTRY2%%": {
+                        "auth": "%%CREDS2%%"
                 }
         },
         "HttpHeaders": {
                 "User-Agent": "Docker-Client/19.03.1 (linux)"
         }
 }
+

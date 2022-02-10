@@ -47,7 +47,13 @@ function _DETECT_CLUSTER {
         NODETYPE="$(grep $(hostname) $SERVERTXT|cut -f6 -d ",")"
 	USERNAME="$(grep $(hostname) $SERVERTXT|cut -f7 -d ",")"
 	PASSWORD="$(grep $(hostname) $SERVERTXT|cut -f8 -d ",")"
+        USERNAME2="$(grep $(hostname) $SERVERTXT|cut -f9 -d ",")"
+        PASSWORD2="$(grep $(hostname) $SERVERTXT|cut -f10 -d ",")"
+        S3_ACCESSTOKEN="$(grep $(hostname) $SERVERTXT|cut -f11 -d ",")"
+        S3_SECRET="$(grep $(hostname) $SERVERTXT|cut -f12 -d ",")"
+        S3_BUCKET="$CLUSTER-etcd-backup"
 	CREDS="$(echo -n $USERNAME:$PASSWORD|base64)"
+        CREDS2="$(echo -n $USERNAME2:$PASSWORD2|base64)"
 	echo CLUSTER is $CLUSTER
 	echo NODETYPE is $NODETYPE
 	echo STAGE is $STAGE
@@ -141,6 +147,17 @@ tls-san:
   - "%%CLUSTER%%.%%DOMAIN%%"
 node-label:
   - "cluster=%%CLUSTER%%"
+etcd-snapshot-schedule-cron: "7 */12 * * *"
+etcd-snapshot-retention: 14
+etcd-s3: true
+etcd-s3-endpoint: %%S3_ENDPOINT%%
+etcd-s3-endpoint-ca: /etc/ssl/ca-bundle.pem
+etcd-s3-access-key: %%S3_ACCESSTOKEN%%
+etcd-s3-secret-key: %%S3_SECRET%%
+etcd-s3-bucket: %%S3_BUCKET%%
+etcd-s3-region: %%S3_REGION%%
+etcd-s3-folder: etcd-snapshots
+etcd-s3-timeout: 300s
 EOF'
 	if grep ",$CLUSTER," $SERVERTXT |grep ',worker,'; then
 		echo "Add node-taint NoExecute on master because we have workers"
@@ -187,6 +204,9 @@ function _PREPARE_REGISTRIES_YAML {
         sudo sed -i "s/%%USERNAME%%/$USERNAME/g" /etc/rancher/rke2/registries.yaml
         sudo sed -i "s/%%PASSWORD%%/$PASSWORD/g" /etc/rancher/rke2/registries.yaml
         sudo sed -i "s/%%REGISTRY%%/$REGISTRY/g" /etc/rancher/rke2/registries.yaml
+	sudo sed -i "s/%%USERNAME2%%/$USERNAME2/g" /etc/rancher/rke2/registries.yaml
+        sudo sed -i "s/%%PASSWORD2%%/$PASSWORD2/g" /etc/rancher/rke2/registries.yaml
+        sudo sed -i "s/%%REGISTRY2%%/$REGISTRY2/g" /etc/rancher/rke2/registries.yaml
         sudo sed -i "s#%%SINGLENAMESPACE%%#$SINGLENAMESPACE#g" /etc/rancher/rke2/registries.yaml
 }
 
@@ -197,6 +217,8 @@ function _PREPARE_DOCKER_CREDENTIALS {
 	sudo cp $RKECLUSTERDIR/config.json /root/.docker/config.json
         sudo sed -i "s/%%REGISTRY%%/$REGISTRY/g" /root/.docker/config.json
 	sudo sed -i "s/%%CREDS%%/$CREDS/g" /root/.docker/config.json
+	sudo sed -i "s/%%REGISTRY2%%/$REGISTRY2/g" /root/.docker/config.json
+        sudo sed -i "s/%%CREDS2%%/$CREDS2/g" /root/.docker/config.json
 }
 
 function _ADMIN_PREPARE {
@@ -491,6 +513,11 @@ function _ADJUST_CLUSTER_IDENTITY {
         	sudo sed -i "s#%%CLUSTERCIDR%%#$CLUSTERCIDR#g" /etc/rancher/rke2/config.yaml
         	sudo sed -i "s#%%SERVICECIDR%%#$SERVICECIDR#g" /etc/rancher/rke2/config.yaml
         	sudo sed -i "s/%%CLUSTERDNS%%/$CLUSTERDNS/g" /etc/rancher/rke2/config.yaml
+                sudo sed -i "s/%%S3_ENDPOINT%%/$S3_ENDPOINT/g" /etc/rancher/rke2/config.yaml
+                sudo sed -i "s/%%S3_ACCESSTOKEN%%/$S3_ACCESSTOKEN/g" /etc/rancher/rke2/config.yaml
+                sudo sed -i "s/%%S3_SECRET%%/$S3_SECRET/g" /etc/rancher/rke2/config.yaml
+                sudo sed -i "s/%%S3_BUCKET%%/$S3_BUCKET/g" /etc/rancher/rke2/config.yaml
+                sudo sed -i "s/%%S3_REGION%%/$S3_REGION/g" /etc/rancher/rke2/config.yaml
 }
 
 function _VSPHERE_CONFIG {
