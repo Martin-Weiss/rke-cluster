@@ -1,26 +1,36 @@
 # user for rke
 RKEUSER="rkeadmin"
 RKEGROUP="rkeadmin"
+
 # clusterfiledir
 RKECLUSTERDIR=/home/$RKEUSER/rke-cluster
+
 # on premise registry to be used (https will always be used)
 REGISTRY="registry01.suse:5000"
-REGISTRY2="registry01.suse:5000"
+REGISTRY2="registry02.suse:5000"
+VIRTUAL_REGISTRY="registries.suse"
+
 # in case the registry does not support folders in namespaces put all images in this namespace and replace registries.yaml with registries.yaml.singlenamespace
 SINGLENAMESPACE="rke-cluster"
+
 # server.txt
 SERVERTXT="/home/$RKEUSER/rke-cluster/server.txt"
+
 # rancher cluster name
 RANCHERCLUSTER="rancher"
+
 # server ca
 CA_KEY="/home/$RKEUSER/rke-cluster/tls/server-ca.key"
 CA_CRT="/home/$RKEUSER/rke-cluster/tls/server-ca.crt"
+
 # internal network
 CLUSTERCIDR="172.27.0.0/16"
 SERVICECIDR="172.28.0.0/16"
 CLUSTERDNS="172.28.0.10"
+
 # wildcard domain"
 WILDCARDDOMAIN="suse"
+
 # S3 ENDPOINT
 S3_ENDPOINT="minio.suse:9000"
 S3_REGION="de-bw-1"

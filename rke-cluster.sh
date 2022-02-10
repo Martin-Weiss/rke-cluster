@@ -207,6 +207,7 @@ function _PREPARE_REGISTRIES_YAML {
 	sudo sed -i "s/%%USERNAME2%%/$USERNAME2/g" /etc/rancher/rke2/registries.yaml
         sudo sed -i "s/%%PASSWORD2%%/$PASSWORD2/g" /etc/rancher/rke2/registries.yaml
         sudo sed -i "s/%%REGISTRY2%%/$REGISTRY2/g" /etc/rancher/rke2/registries.yaml
+        sudo sed -i "s/%%VIRTUAL_REGISTRY%%/$VIRTUAL_REGISTRY/g" /etc/rancher/rke2/registries.yaml
         sudo sed -i "s#%%SINGLENAMESPACE%%#$SINGLENAMESPACE#g" /etc/rancher/rke2/registries.yaml
 }
 
