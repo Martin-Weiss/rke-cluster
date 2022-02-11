@@ -18,8 +18,9 @@ done
 wget -N "https://raw.githubusercontent.com/rancherlabs/support-tools/master/collection/rancher/v2.x/logs-collector/rancher2_logs_collector.sh"
 chmod +x rancher2_logs_collector.sh
 
-# 1.20.4 and 1.20.5 workaround
-RKE2_VERSIONS="v1.20.4+rke2r1 v1.20.5+rke2r1"
+# 1.20.4 and 1.20.5 workaround for pulling images not working
+# v1.20.15+rke2r1 v1.21.9+rke2r1 pulling images from portus not working
+RKE2_VERSIONS="v1.20.4+rke2r1 v1.20.5+rke2r1 v1.20.15+rke2r1 v1.21.9+rke2r1"
 for RKE2_VERSION in $RKE2_VERSIONS; do
 	mkdir -p $RKE2_VERSION
 	if [ ! -f "$RKE2_VERSION/rke2-images.linux-amd64.tar.zst" ]; then
@@ -28,4 +29,5 @@ for RKE2_VERSION in $RKE2_VERSIONS; do
 	echo "rke2.linux-amd64.tar.gz" > $RKE2_VERSION/.gitignore
         echo "rke2-images.linux-amd64.tar.zst" >> $RKE2_VERSION/.gitignore
         echo "rke2-images.linux-amd64.tar.gz" >> $RKE2_VERSION/.gitignore
+	echo "kubectl" >> $RKE2_VERSION/.gitignore
 done

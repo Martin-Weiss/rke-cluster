@@ -423,6 +423,14 @@ function _FIX_1_20_11 {
         fi
 }
 
+function _FIX_1_20_15_1_21_9_DEPLOYMENT {
+        # image pull from portus does not work in these versions
+        if [ "$RKE2_VERSION" == "v1.20.15+rke2r1" ] || [ "$RKE2_VERSION" == "v1.21.9+rke2r1" ]; then
+                sudo mkdir -p /var/lib/rancher/rke2/agent/images
+                sudo cp -a $RKECLUSTERDIR/$RKE2_VERSION/rke2-images.linux-amd64.tar.zst /var/lib/rancher/rke2/agent/images
+        fi
+}
+
 function _CILIUM_NOT_CANAL {
 	if echo $RKE2_VERSION |grep "v1.20.6" && [ -f $RKECLUSTERDIR/manifests/rke2-cilium.yaml ]; then
 		echo "Cilium Yaml exists and cluster version is v1.20.6"
@@ -570,6 +578,7 @@ function _JOIN_CLUSTER {
 		_FIX_1_19_10_DEPLOYMENT
                 _FIX_1_20_DEPLOYMENT
                 _FIX_1_20_6
+		_FIX_1_20_15_1_21_9_DEPLOYMENT
                 sudo sed -i "/^server/d" /etc/rancher/rke2/config.yaml
                 sudo systemctl enable rke2-server.service 2>&1 >/dev/null;
                 sudo systemctl restart rke2-server.service 2>&1 >/dev/null;
@@ -588,6 +597,7 @@ function _JOIN_CLUSTER {
 		_FIX_1_19_10_DEPLOYMENT
                 _FIX_1_20_DEPLOYMENT
                 _FIX_1_20_6
+		_FIX_1_20_15_1_21_9_DEPLOYMENT
                 sudo systemctl enable rke2-server.service 2>&1 >/dev/null;
                 sudo systemctl restart rke2-server.service 2>&1 >/dev/null;
                 _ADMIN_PREPARE
@@ -605,6 +615,7 @@ function _JOIN_CLUSTER {
                 _FIX_1_20_DEPLOYMENT
                 _FIX_1_20_6
 		_FIX_1_20_7
+		_FIX_1_20_15_1_21_9_DEPLOYMENT
                 sudo systemctl enable rke2-agent.service 2>&1 >/dev/null;
                 sudo systemctl restart rke2-agent.service 2>&1 >/dev/null;
 		_AGENT_PREPARE
