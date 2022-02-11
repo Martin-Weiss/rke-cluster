@@ -428,6 +428,7 @@ function _FIX_1_20_15_1_21_9_DEPLOYMENT {
         if [ "$RKE2_VERSION" == "v1.20.15+rke2r1" ] || [ "$RKE2_VERSION" == "v1.21.9+rke2r1" ]; then
                 sudo mkdir -p /var/lib/rancher/rke2/agent/images
                 sudo cp -a $RKECLUSTERDIR/$RKE2_VERSION/rke2-images.linux-amd64.tar.zst /var/lib/rancher/rke2/agent/images
+		echo "copied images to /var/lib/rancher/rke2/agent/images - so restart of rke2 server / agent will be very slow - be patient"
         fi
 }
 
@@ -564,6 +565,13 @@ function _VSPHERE_CONFIG {
 		fi
 }
 
+function _CLEANUP_IMAGES {
+	# after initial startup the images should be extracted so lets delete them to speed up the process for further restarts
+		if [ -f $RKECLUSTERDIR/$RKE2_VERSION/rke2-images.linux-amd64.tar.zst ]; then
+			rm $RKECLUSTERDIR/$RKE2_VERSION/rke2-images.linux-amd64.tar.zst
+		fi
+}
+
 function _JOIN_CLUSTER {
         if [ $NODETYPE == "master1" ] ; then
                 echo "We are on the first master"
@@ -582,6 +590,7 @@ function _JOIN_CLUSTER {
                 sudo sed -i "/^server/d" /etc/rancher/rke2/config.yaml
                 sudo systemctl enable rke2-server.service 2>&1 >/dev/null;
                 sudo systemctl restart rke2-server.service 2>&1 >/dev/null;
+		_CLEANUP_IMAGES
                 _ADMIN_PREPARE
 		echo "Verify with:  sudo journalctl -u rke2-server -f"
 	elif [ $NODETYPE == "master" ] ; then
@@ -600,6 +609,7 @@ function _JOIN_CLUSTER {
 		_FIX_1_20_15_1_21_9_DEPLOYMENT
                 sudo systemctl enable rke2-server.service 2>&1 >/dev/null;
                 sudo systemctl restart rke2-server.service 2>&1 >/dev/null;
+		_CLEANUP_IMAGES
                 _ADMIN_PREPARE
 		echo "Verify with:  sudo journalctl -u rke2-server -f"
         elif [ $NODETYPE == "worker" ] ; then
@@ -618,6 +628,7 @@ function _JOIN_CLUSTER {
 		_FIX_1_20_15_1_21_9_DEPLOYMENT
                 sudo systemctl enable rke2-agent.service 2>&1 >/dev/null;
                 sudo systemctl restart rke2-agent.service 2>&1 >/dev/null;
+		_CLEANUP_IMAGES
 		_AGENT_PREPARE
 		echo "Verify with:  sudo journalctl -u rke2-agent -f"
         else
