@@ -28,4 +28,7 @@ spec:
       replicaCount: 3
       image:
         repository: %%REGISTRY%%/%%STAGE%%/quay.io/jetstack/cert-manager-cainjector
+    startupapicheck:
+      image:
+        repository: %%REGISTRY%%/%%STAGE%%/quay.io/jetstack/cert-manager-ctl
 
