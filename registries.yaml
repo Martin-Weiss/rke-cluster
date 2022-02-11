@@ -11,12 +11,6 @@ mirrors:
       - "https://%%REGISTRY2%%/v2/"
     rewrite:
       "^(?:library|)(.*)": "%%STAGE%%/docker.io/$1"
-  index.docker.io:
-    endpoint:
-      - "https://%%REGISTRY%%/v2/"
-      - "https://%%REGISTRY2%%/v2/"
-    rewrite:
-      "^(?:library|)(.*)": "%%STAGE%%/docker.io/$1"
   quay.io:
     endpoint:
       - "https://%%REGISTRY%%/v2/"
