@@ -299,8 +299,8 @@ function _CONFIGURE_CUSTOM_CA {
         # server-ca.crt and key need to be copied only if not exist in target and if exist in source
         # only required on first master as others get it via registration against 9345
         # added first experiment for rancher and cert-manager using custom CA
-	# does not work with RKE2 v1.19.10+rke2r1
-        if [ -f $CA_CRT ] && [ -f $CA_KEY ] && [ "$FIRSTMASTER" == "1" ] && [ ! "$RKE2_VERSION" == "v1.19.10+rke2r1" ]; then
+	# does not work with RKE2 v1.19.*
+        if [ -f $CA_CRT ] && [ -f $CA_KEY ] && [ "$FIRSTMASTER" == "1" ] && ! echo $RKE2_VERSION |grep "v1.19." ; then
 	        sudo mkdir -p /var/lib/rancher/rke2/server/tls
                 echo 'custom CA exists and target CA does not exist - so copy custom one'
                 sudo cp -a $CA_CRT /var/lib/rancher/rke2/server/tls/server-ca.crt
@@ -333,11 +333,11 @@ function _CONFIGURE_CUSTOM_CA {
         fi
 }
 
-function _FIX_1_19_10_DEPLOYMENT {
-	if [ "$RKE2_VERSION" == "v1.19.10+rke2r1" ]; then
-		# etcd timeout does not exist in 1.19.10
+function _FIX_1_19_DEPLOYMENT {
+	if  echo $RKE2_VERSION |grep "v1.19." ; then
+		# etcd timeout does not exist in 1.19.*
 		sudo sed -i "/^etcd-s3-timeout:.*/d" /etc/rancher/rke2/config.yaml
-		# cis 1.6 does not exist in 1.19.10
+		# cis 1.6 does not exist in 1.19.*
 		sudo sed -i "s/^profile: cis-1.6/profile: cis-1.5/g" /etc/rancher/rke2/config.yaml
 	fi
 }
@@ -583,7 +583,7 @@ function _JOIN_CLUSTER {
 		_COPY_MANIFESTS_AND_CHARTS
 		_ADJUST_CLUSTER_IDENTITY
 		_VSPHERE_CONFIG
-		_FIX_1_19_10_DEPLOYMENT
+		_FIX_1_19_DEPLOYMENT
                 _FIX_1_20_DEPLOYMENT
                 _FIX_1_20_6
 		_FIX_1_20_15_1_21_9_DEPLOYMENT
@@ -621,7 +621,7 @@ function _JOIN_CLUSTER {
                 _PREPARE_RKE2_CLOUD_CONFIG
 		_ADJUST_CLUSTER_IDENTITY
 		_VSPHERE_CONFIG
-		_FIX_1_19_10_DEPLOYMENT
+		_FIX_1_19_DEPLOYMENT
                 _FIX_1_20_DEPLOYMENT
                 _FIX_1_20_6
 		_FIX_1_20_7
