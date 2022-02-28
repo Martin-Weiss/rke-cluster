@@ -13,10 +13,11 @@ items:
   spec:
     syslog:
       buffer:
-        flush_interval: 5s
-        timekey: 30s
+        total_limit_size: 2GB
+        flush_thread_count: 8
+        timekey: 10m
         timekey_use_utc: true
-        timekey_wait: 10s
+        timekey_wait: 1m
       format:
         app_name_field: kubernetes.pod_name
         hostname_field: custom-cluster-name
@@ -25,7 +26,7 @@ items:
       host: syslog01.suse
       insecure: true
       port: 514
-      transport: tcp
+      transport: udp
 kind: List
 ---
 apiVersion: v1

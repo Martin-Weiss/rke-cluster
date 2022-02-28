@@ -64,6 +64,14 @@ spec:
       runAsNonRoot: true
       runAsUser: 1000
       fsGroup: 2000
+    tolerations:
+      - key: cattle.io/os
+        operator: "Equal"
+        value: "linux"
+        effect: NoSchedule
+      - effect: NoExecute
+        key: CriticalAddonsOnly
+        value: "true"
     fluentd:
       resources:
         limits:
