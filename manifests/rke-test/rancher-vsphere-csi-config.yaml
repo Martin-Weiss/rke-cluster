@@ -6,6 +6,8 @@ metadata:
 spec:
   valuesContent: |-
     csiController:
+      csiResizer:
+        enabled: true
       nodeSelector:
         node-role.kubernetes.io/control-plane: "true"
       tolerations:
@@ -37,6 +39,7 @@ spec:
       enabled: true
       name: "vsphere"
       isDefault: false
+      allowVolumeExpansion: true
       storagePolicyName: ""
       datastoreURL: ""
 
