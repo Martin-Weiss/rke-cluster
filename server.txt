@@ -15,9 +15,9 @@ rke-int-master-03,suse,v1.19.16+rke2r1,rke-int,rke-int,master,rke-int-cluster,F8
 rke-int-worker-01,suse,v1.19.16+rke2r1,rke-int,rke-int,worker,rke-int-cluster,F8RBf8NtmMqearESeZ43,rke-int-cluster,F8RBf8NtmMqearESeZ43,rke-int-cluster,rke-int-cluster1234
 rke-int-worker-02,suse,v1.19.16+rke2r1,rke-int,rke-int,worker,rke-int-cluster,F8RBf8NtmMqearESeZ43,rke-int-cluster,F8RBf8NtmMqearESeZ43,rke-int-cluster,rke-int-cluster1234
 rke-int-worker-03,suse,v1.19.16+rke2r1,rke-int,rke-int,worker,rke-int-cluster,F8RBf8NtmMqearESeZ43,rke-int-cluster,F8RBf8NtmMqearESeZ43,rke-int-cluster,rke-int-cluster1234
-rke-prod-master-01,suse,v1.19.10+rke2r1,rke-prod,rke-prod,master1,rke-prod-cluster,omE-NsRgyuxLs8h-quKZ,rke-prod-cluster,omE-NsRgyuxLs8h-quKZ,rke-prod-cluster,rke-prod-cluster1234
-rke-prod-master-02,suse,v1.19.10+rke2r1,rke-prod,rke-prod,master,rke-prod-cluster,omE-NsRgyuxLs8h-quKZ,rke-prod-cluster,omE-NsRgyuxLs8h-quKZ,rke-prod-cluster,rke-prod-cluster1234
-rke-prod-master-03,suse,v1.19.10+rke2r1,rke-prod,rke-prod,master,rke-prod-cluster,omE-NsRgyuxLs8h-quKZ,rke-prod-cluster,omE-NsRgyuxLs8h-quKZ,rke-prod-cluster,rke-prod-cluster1234
-rke-prod-worker-01,suse,v1.19.10+rke2r1,rke-prod,rke-prod,worker,rke-prod-cluster,omE-NsRgyuxLs8h-quKZ,rke-prod-cluster,omE-NsRgyuxLs8h-quKZ,rke-prod-cluster,rke-prod-cluster1234
-rke-prod-worker-02,suse,v1.19.10+rke2r1,rke-prod,rke-prod,worker,rke-prod-cluster,omE-NsRgyuxLs8h-quKZ,rke-prod-cluster,omE-NsRgyuxLs8h-quKZ,rke-prod-cluster,rke-prod-cluster1234
-rke-prod-worker-03,suse,v1.19.10+rke2r1,rke-prod,rke-prod,worker,rke-prod-cluster,omE-NsRgyuxLs8h-quKZ,rke-prod-cluster,omE-NsRgyuxLs8h-quKZ,rke-prod-cluster,rke-prod-cluster1234
+rke-prod-master-01,suse,v1.21.9+rke2r1,rke-prod,rke-prod,master1,rke-prod-cluster,omE-NsRgyuxLs8h-quKZ,rke-prod-cluster,omE-NsRgyuxLs8h-quKZ,rke-prod-cluster,rke-prod-cluster1234
+rke-prod-master-02,suse,v1.21.9+rke2r1,rke-prod,rke-prod,master,rke-prod-cluster,omE-NsRgyuxLs8h-quKZ,rke-prod-cluster,omE-NsRgyuxLs8h-quKZ,rke-prod-cluster,rke-prod-cluster1234
+rke-prod-master-03,suse,v1.21.9+rke2r1,rke-prod,rke-prod,master,rke-prod-cluster,omE-NsRgyuxLs8h-quKZ,rke-prod-cluster,omE-NsRgyuxLs8h-quKZ,rke-prod-cluster,rke-prod-cluster1234
+rke-prod-worker-01,suse,v1.21.9+rke2r1,rke-prod,rke-prod,worker,rke-prod-cluster,omE-NsRgyuxLs8h-quKZ,rke-prod-cluster,omE-NsRgyuxLs8h-quKZ,rke-prod-cluster,rke-prod-cluster1234
+rke-prod-worker-02,suse,v1.21.9+rke2r1,rke-prod,rke-prod,worker,rke-prod-cluster,omE-NsRgyuxLs8h-quKZ,rke-prod-cluster,omE-NsRgyuxLs8h-quKZ,rke-prod-cluster,rke-prod-cluster1234
+rke-prod-worker-03,suse,v1.21.9+rke2r1,rke-prod,rke-prod,worker,rke-prod-cluster,omE-NsRgyuxLs8h-quKZ,rke-prod-cluster,omE-NsRgyuxLs8h-quKZ,rke-prod-cluster,rke-prod-cluster1234
