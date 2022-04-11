@@ -32,6 +32,9 @@ subjects:
   name: rancher-logging-fluentd
   namespace: cattle-logging-system
 - kind: ServiceAccount
+  name: rancher-logging-root-fluentd
+  namespace: cattle-logging-system
+- kind: ServiceAccount
   name: rancher-logging-fluentbit
   namespace: cattle-logging-system
 - kind: ServiceAccount
@@ -48,7 +51,7 @@ metadata:
   namespace: kube-system
 spec:
   jobImage: %%REGISTRY%%/%%STAGE%%/docker.io/rancher/klipper-helm:v0.4.3
-  chart: https://%%CLUSTER%%.%%DOMAIN%%:9345/static/charts/rancher-logging-100.0.1+up3.15.0.tgz
+  chart: https://%%CLUSTER%%.%%DOMAIN%%:9345/static/charts/rancher-logging-100.1.1+up3.17.3.tgz
   targetNamespace: cattle-logging-system
   valuesContent: |-
     global:

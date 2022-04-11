@@ -52,8 +52,8 @@ function _DETECT_CLUSTER {
         S3_ACCESSTOKEN="$(grep $(hostname) $SERVERTXT|cut -f11 -d ",")"
         S3_SECRET="$(grep $(hostname) $SERVERTXT|cut -f12 -d ",")"
         S3_BUCKET="$CLUSTER-etcd-backup"
-	CREDS="$(echo -n $USERNAME:$PASSWORD|base64)"
-        CREDS2="$(echo -n $USERNAME2:$PASSWORD2|base64)"
+	CREDS="$(echo -n $USERNAME:$PASSWORD|base64 -w0)"
+        CREDS2="$(echo -n $USERNAME2:$PASSWORD2|base64 -w0)"
 	echo CLUSTER is $CLUSTER
 	echo NODETYPE is $NODETYPE
 	echo STAGE is $STAGE
@@ -381,7 +381,9 @@ function _FIX_1_20_6 {
 	   [ "$RKE2_VERSION" == "v1.21.6+rke2r1" ] ||\
 	   [ "$RKE2_VERSION" == "v1.21.7+rke2r1" ] ||\
 	   [ "$RKE2_VERSION" == "v1.21.7+rke2r2" ] ||\
-	   [ "$RKE2_VERSION" == "v1.21.9+rke2r1" ] ; then
+	   [ "$RKE2_VERSION" == "v1.21.9+rke2r1" ] ||\
+	   [ "$RKE2_VERSION" == "v1.21.10+rke2r2" ] ||\
+	   [ "$RKE2_VERSION" == "v1.21.11+rke2r1" ] ; then
                 # remove system-default registry
                 sudo sed -i "/^system-default-registry:.*/d" /etc/rancher/rke2/config.yaml
                 sudo sed -i "s/systemDefaultRegistry:.*/systemDefaultRegistry: \"\"/g" $RKECLUSTERDIR/manifests/*.yaml
@@ -401,6 +403,7 @@ function _FIX_1_20_6 {
 }
 
 function _FIX_1_20_7 {
+	# workaround only needed on agents
         if [ "$RKE2_VERSION" == "v1.20.7+rke2r1" ] ||\
 	   [ "$RKE2_VERSION" == "v1.20.7+rke2r2" ] ||\
 	   [ "$RKE2_VERSION" == "v1.20.8+rke2r1" ] ||\
@@ -416,20 +419,22 @@ function _FIX_1_20_11 {
 	   echo $RKE2_VERSION |grep "v1.20.13" ||\
 	   echo $RKE2_VERSION |grep "v1.20.15" ||\
 	   echo $RKE2_VERSION |grep "v1.21.7" ||\
-	   echo $RKE2_VERSION |grep "v1.21.9" ; then
+	   echo $RKE2_VERSION |grep "v1.21.9" ||\
+	   echo $RKE2_VERSION |grep "v1.21.10" ||\
+	   echo $RKE2_VERSION |grep "v1.21.11" ; then
                 echo "remove rke2-kube-proxy-config.yaml as the deployment method for kube proxy changed"
 		sudo rm $RKECLUSTERDIR/manifests/rke2-kube-proxy-config.yaml
 		sudo rm /var/lib/rancher/rke2/server/manifests/rke2-kube-proxy-config.yaml
         fi
 }
 
-function _FIX_1_20_15_1_21_9_DEPLOYMENT {
-        # image pull from portus does not work in these versions
-	# seems this is related to the tailing slash in registries.yaml after /v2 so removed that tailing slash and disabled this function, now
-        if [ "$RKE2_VERSION" == "v1.20.15+rke2r1" ] || [ "$RKE2_VERSION" == "v1.21.9+rke2r1" ]; then
-                sudo mkdir -p /var/lib/rancher/rke2/agent/images
-                sudo cp -a $RKECLUSTERDIR/$RKE2_VERSION/rke2-images.linux-amd64.tar.zst /var/lib/rancher/rke2/agent/images
-		echo "copied images to /var/lib/rancher/rke2/agent/images - so restart of rke2 server / agent will be very slow - be patient"
+function _FIX_V2_TAILING_SLASH {
+        # image pull does not work with tailing slash in registries.yaml in these versions but older versions need the tailing slash
+        if [ "$RKE2_VERSION" == "v1.20.15+rke2r1" ] ||\
+                [ "$RKE2_VERSION" == "v1.21.9+rke2r1" ] ||\
+                [ "$RKE2_VERSION" == "v1.21.10+rke2r2" ] ||\
+                [ "$RKE2_VERSION" == "v1.21.11+rke2r1" ] ; then
+                sudo sed -i 's/v2\//v2/g' /etc/rancher/rke2/registries.yaml
         fi
 }
 
@@ -452,16 +457,18 @@ function _CILIUM_NOT_CANAL {
 	     echo $RKE2_VERSION |grep "v1.21.5" ||\
 	     echo $RKE2_VERSION |grep "v1.21.6" ||\
 	     echo $RKE2_VERSION |grep "v1.21.7" ||\
-	     echo $RKE2_VERSION |grep "v1.21.9" &&\
+	     echo $RKE2_VERSION |grep "v1.21.9" ||\
+	     echo $RKE2_VERSION |grep "v1.21.10" ||\
+	     echo $RKE2_VERSION |grep "v1.21.11" &&\
 	     [ -f $RKECLUSTERDIR/manifests/rke2-cilium.yaml ]; then
-		echo "Cilium Yaml exists and cluster version is v1.20.7-v1.20.15 or v1.21.2-v1.21.9"
+		echo "Cilium Yaml exists and cluster version is v1.20.7-v1.20.15 or v1.21.2-v1.21.11"
 		sudo sed -i "/^cni:/d" /etc/rancher/rke2/config.yaml
 		sudo bash -c 'echo "cni: cilium" >>/etc/rancher/rke2/config.yaml'
 		sudo rm $RKECLUSTERDIR/manifests/rke2-canal*.yaml /var/lib/rancher/rke2/server/manifests/rke2-canal*.yaml
 		# do not need this file in 1.20.7 or newer, anymore
 		sudo rm $RKECLUSTERDIR/manifests/rke2-cilium.yaml
 	else
-		echo "Cilium Yaml does not exist or cluster version is not v1.20.7-v1.20.15 or v1.21.2-v1.21.9"
+		echo "Cilium Yaml does not exist or cluster version is not v1.20.7-v1.20.15 or v1.21.2-v1.21.11"
 		sudo rm $RKECLUSTERDIR/manifests/rke2-cilium*.yaml*
 	fi
 }
@@ -590,7 +597,7 @@ function _JOIN_CLUSTER {
 		_FIX_1_19_DEPLOYMENT
                 _FIX_1_20_DEPLOYMENT
                 _FIX_1_20_6
-		#_FIX_1_20_15_1_21_9_DEPLOYMENT
+		_FIX_V2_TAILING_SLASH
                 sudo sed -i "/^server/d" /etc/rancher/rke2/config.yaml
                 sudo systemctl enable rke2-server.service 2>&1 >/dev/null;
                 sudo systemctl restart rke2-server.service 2>&1 >/dev/null;
@@ -610,7 +617,7 @@ function _JOIN_CLUSTER {
 		_FIX_1_19_DEPLOYMENT
                 _FIX_1_20_DEPLOYMENT
                 _FIX_1_20_6
-		#_FIX_1_20_15_1_21_9_DEPLOYMENT
+		_FIX_V2_TAILING_SLASH
                 sudo systemctl enable rke2-server.service 2>&1 >/dev/null;
                 sudo systemctl restart rke2-server.service 2>&1 >/dev/null;
 		#_CLEANUP_IMAGES
@@ -629,7 +636,7 @@ function _JOIN_CLUSTER {
                 _FIX_1_20_DEPLOYMENT
                 _FIX_1_20_6
 		_FIX_1_20_7
-		#_FIX_1_20_15_1_21_9_DEPLOYMENT
+		_FIX_V2_TAILING_SLASH
                 sudo systemctl enable rke2-agent.service 2>&1 >/dev/null;
                 sudo systemctl restart rke2-agent.service 2>&1 >/dev/null;
 		#_CLEANUP_IMAGES

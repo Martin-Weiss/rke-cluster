@@ -1,22 +1,22 @@
 mirrors:
   docker.io:
     endpoint:
-      - "https://%%REGISTRY%%/v2"
+      - "https://%%REGISTRY%%/v2/"
     rewrite:
       ".*/(.*)": "%%SINGLENAMESPACE%%/%%STAGE%%/$1"
   quay.io:
     endpoint:
-      - "https://%%REGISTRY%%/v2"
+      - "https://%%REGISTRY%%/v2/"
     rewrite:
       ".*/(.*)": "%%SINGLENAMESPACE%%/%%STAGE%%/$1"
   gcr.io:
     endpoint:
-      - "https://%%REGISTRY%%/v2"
+      - "https://%%REGISTRY%%/v2/"
     rewrite:
       ".*/(.*)": "%%SINGLENAMESPACE%%/%%STAGE%%/$1"
   k8s.gcr.io:
     endpoint:
-      - "https://%%REGISTRY%%/v2"
+      - "https://%%REGISTRY%%/v2/"
     rewrite:
       ".*/(.*)": "%%SINGLENAMESPACE%%/%%STAGE%%/$1"
 configs:

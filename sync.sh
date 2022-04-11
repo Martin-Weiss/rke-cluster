@@ -15,8 +15,8 @@ salt -L $CLUSTER_NODES_LIST state.apply manager_org_1.rke-cluster
 for CLUSTER_NODE in $CLUSTER_NODES; do	
 	ROLE=$(grep $CLUSTER_NODE /srv/salt/rke-cluster/server.txt|cut -f6 -d ",")
 	echo "checking if node is rebooted after patching"
-	PATCHED="5"
-	while [ "$PATCHED" == "5" ]; do
+	PATCHED="3"
+	while [ "$PATCHED" == "3" ]; do
 		# need to be enhanced - does not work in case there are no patches that require a reboot
 		echo "PATCHED for $CLUSTER_NODE.$DOMAIN is $PATCHED"
 		PATCHED=$(salt $CLUSTER_NODE.$DOMAIN cmd.shell "last reboot"|wc -l)

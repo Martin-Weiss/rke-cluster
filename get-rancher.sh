@@ -1,5 +1,5 @@
 #!/bin/bash
-VERSIONS="2.5.5 2.5.7 2.5.8 2.5.9 2.6.0 2.6.1 2.6.2 2.6.3 2.6.4"
+VERSIONS="2.5.12 2.6.4"
 for VERSION in $VERSIONS; do
 #	wget -N https://github.com/rancher/rancher/rancher-$VERSION.tgz -P charts -o rancher-v$VERSION.tgz
 	if [ ! -f helm-cli/helm ]; then
