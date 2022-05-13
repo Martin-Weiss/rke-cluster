@@ -535,7 +535,17 @@ function _COPY_MANIFESTS_AND_CHARTS {
 			echo "copy manifests only on first master until we have better solution to apply only once"
 			# try to ensure all files have the same timestamp to apply only once
 			sudo touch -d "2021-04-16 11:53" $RKECLUSTERDIR/manifests/*.yaml
-			sudo cp -a $RKECLUSTERDIR/manifests/*.yaml /var/lib/rancher/rke2/server/manifests
+			# remove *.yaml file created by touch in case no yaml file exists
+			sudo rm $RKECLUSTERDIR/manifests/\*.yaml
+			if [ "$FLEET" == "yes" ]; then
+				echo "We use fleet so not copying $RKECLUSTERDIR/manifests/*.yaml to /var/lib/rancher/rke2/server/manifests"
+				# just copy rancher and gitrepo manifests for fleet
+				sudo cp -a $RKECLUSTERDIR/manifests/rancher.yaml /var/lib/rancher/rke2/server/manifests
+				sudo cp -a $RKECLUSTERDIR/manifests/gitrepo*.yaml /var/lib/rancher/rke2/server/manifests
+			else
+				echo "We do not use fleet so copying $RKECLUSTERDIR/manifests/*.yaml to /var/lib/rancher/rke2/server/manifests"
+				sudo cp -a $RKECLUSTERDIR/manifests/*.yaml /var/lib/rancher/rke2/server/manifests
+			fi
 		fi
 }
 

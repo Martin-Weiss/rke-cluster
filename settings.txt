@@ -32,6 +32,8 @@ CLUSTERDNS="172.28.0.10"
 WILDCARDDOMAIN="suse"
 
 # S3 ENDPOINT
-S3_ENDPOINT="minio.suse:9000"
+S3_ENDPOINT="minio01.suse:9000"
 S3_REGION="de-bw-1"
 
+# use fleet instead of pre-delivered manifests
+FLEET="yes"
