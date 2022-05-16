@@ -158,6 +158,14 @@ etcd-s3-bucket: %%S3_BUCKET%%
 etcd-s3-region: %%S3_REGION%%
 etcd-s3-folder: etcd-snapshots
 etcd-s3-timeout: 300s
+kubelet-arg: 
+  - "config=/etc/rancher/rke2/kubelet-config.yaml"
+EOF'
+        sudo bash -c 'cat << EOF > /etc/rancher/rke2/kubelet-config.yaml
+apiVersion: kubelet.config.k8s.io/v1beta1
+kind: KubeletConfiguration
+HighThresholdPercent: 80
+LowThresholdPercent: 60
 EOF'
 	if grep ",$CLUSTER," $SERVERTXT |grep ',worker,'; then
 		echo "Add node-taint NoExecute on master because we have workers"
@@ -183,7 +191,16 @@ profile: cis-1.6
 node-label:
   - "cluster=%%CLUSTER%%"
   - "role=storage-node"
+kubelet-arg: 
+  - "config=/etc/rancher/rke2/kubelet-config.yaml"
 EOF'
+          sudo bash -c 'cat << EOF > /etc/rancher/rke2/kubelet-config.yaml
+apiVersion: kubelet.config.k8s.io/v1beta1
+kind: KubeletConfiguration
+HighThresholdPercent: 80
+LowThresholdPercent: 60
+EOF'
+
 }
 
 function _PREPARE_RKE2_CLOUD_CONFIG {
@@ -384,6 +401,7 @@ function _FIX_1_20_6 {
 	   [ "$RKE2_VERSION" == "v1.21.9+rke2r1" ] ||\
 	   [ "$RKE2_VERSION" == "v1.21.10+rke2r2" ] ||\
 	   [ "$RKE2_VERSION" == "v1.22.8+rke2r1" ] ||\
+	   [ "$RKE2_VERSION" == "v1.22.9+rke2r2" ] ||\
 	   [ "$RKE2_VERSION" == "v1.21.11+rke2r1" ] ; then
                 # remove system-default registry
                 sudo sed -i "/^system-default-registry:.*/d" /etc/rancher/rke2/config.yaml
@@ -423,6 +441,7 @@ function _FIX_1_20_11 {
 	   echo $RKE2_VERSION |grep "v1.21.9" ||\
 	   echo $RKE2_VERSION |grep "v1.21.10" ||\
 	   echo $RKE2_VERSION |grep "v1.22.8" ||\
+	   echo $RKE2_VERSION |grep "v1.22.9" ||\
 	   echo $RKE2_VERSION |grep "v1.21.11" ; then
                 echo "remove rke2-kube-proxy-config.yaml as the deployment method for kube proxy changed"
 		sudo rm $RKECLUSTERDIR/manifests/rke2-kube-proxy-config.yaml
@@ -436,6 +455,7 @@ function _FIX_V2_TAILING_SLASH {
                 [ "$RKE2_VERSION" == "v1.21.9+rke2r1" ] ||\
                 [ "$RKE2_VERSION" == "v1.21.10+rke2r2" ] ||\
                 [ "$RKE2_VERSION" == "v1.22.8+rke2r1" ] ||\
+                [ "$RKE2_VERSION" == "v1.22.9+rke2r2" ] ||\
                 [ "$RKE2_VERSION" == "v1.21.11+rke2r1" ] ; then
                 sudo sed -i 's/v2\//v2/g' /etc/rancher/rke2/registries.yaml
         fi
@@ -463,16 +483,17 @@ function _CILIUM_NOT_CANAL {
 	     echo $RKE2_VERSION |grep "v1.21.9" ||\
 	     echo $RKE2_VERSION |grep "v1.21.10" ||\
 	     echo $RKE2_VERSION |grep "v1.22.8" ||\
+	     echo $RKE2_VERSION |grep "v1.22.9" ||\
 	     echo $RKE2_VERSION |grep "v1.21.11" &&\
 	     [ -f $RKECLUSTERDIR/manifests/rke2-cilium.yaml ]; then
-		echo "Cilium Yaml exists and cluster version is v1.20.7-v1.20.15 or v1.21.2-v1.22.8"
+		echo "Cilium Yaml exists and cluster version is v1.20.7-v1.20.15 or v1.21.2-v1.22.9"
 		sudo sed -i "/^cni:/d" /etc/rancher/rke2/config.yaml
 		sudo bash -c 'echo "cni: cilium" >>/etc/rancher/rke2/config.yaml'
 		sudo rm $RKECLUSTERDIR/manifests/rke2-canal*.yaml /var/lib/rancher/rke2/server/manifests/rke2-canal*.yaml
 		# do not need this file in 1.20.7 or newer, anymore
 		sudo rm $RKECLUSTERDIR/manifests/rke2-cilium.yaml
 	else
-		echo "Cilium Yaml does not exist or cluster version is not v1.20.7-v1.20.15 or v1.21.2-v1.22.8"
+		echo "Cilium Yaml does not exist or cluster version is not v1.20.7-v1.20.15 or v1.21.2-v1.22.9"
 		sudo rm $RKECLUSTERDIR/manifests/rke2-cilium*.yaml*
 	fi
 }
