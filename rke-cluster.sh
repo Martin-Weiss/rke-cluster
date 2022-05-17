@@ -164,8 +164,8 @@ EOF'
         sudo bash -c 'cat << EOF > /etc/rancher/rke2/kubelet-config.yaml
 apiVersion: kubelet.config.k8s.io/v1beta1
 kind: KubeletConfiguration
-HighThresholdPercent: 80
-LowThresholdPercent: 60
+imageGCHighThresholdPercent: 80
+imageGCLowThresholdPercent: 60
 EOF'
 	if grep ",$CLUSTER," $SERVERTXT |grep ',worker,'; then
 		echo "Add node-taint NoExecute on master because we have workers"
@@ -197,8 +197,8 @@ EOF'
           sudo bash -c 'cat << EOF > /etc/rancher/rke2/kubelet-config.yaml
 apiVersion: kubelet.config.k8s.io/v1beta1
 kind: KubeletConfiguration
-HighThresholdPercent: 80
-LowThresholdPercent: 60
+imageGCHighThresholdPercent: 80
+imageGCLowThresholdPercent: 60
 EOF'
 
 }
