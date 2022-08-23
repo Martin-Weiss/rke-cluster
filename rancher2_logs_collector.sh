@@ -9,7 +9,7 @@ SYSTEM_NAMESPACES=(kube-system kube-public cattle-system cattle-alerting cattle-
 KUBE_CONTAINERS=(etcd etcd-rolling-snapshots kube-apiserver kube-controller-manager kubelet kube-scheduler kube-proxy nginx-proxy)
 
 # Included journald logs
-JOURNALD_LOGS=(docker k3s rke2-agent rke2-server containerd cloud-init systemd-network kubelet kubeproxy)
+JOURNALD_LOGS=(docker k3s rke2-agent rke2-server containerd cloud-init systemd-network kubelet kubeproxy rancher-system-agent)
 
 # Minimum space needed to run the script (MB)
 SPACE=1536
@@ -67,6 +67,10 @@ sherlock() {
     then
       techo "Setting k8s distro as ${DISTRO_FLAG}"
       DISTRO="${DISTRO_FLAG}"
+      if [ "${DISTRO_FLAG}" = "rke2" ]
+        then
+          sherlock-data-dir
+      fi
     else
       echo -n "$(timestamp): Detecting k8s distribution... "
       if $(command -v docker >/dev/null 2>&1)
@@ -76,7 +80,7 @@ sherlock() {
               DISTRO=rke
               echo "rke"
             else
-              FOUND="rke "
+              FOUND="rke"
           fi
       fi
       if $(command -v k3s >/dev/null 2>&1)
@@ -91,23 +95,7 @@ sherlock() {
       fi
       if $(command -v rke2 >/dev/null 2>&1)
         then
-          RKE2_BIN=$(dirname $(which rke2))
-          if [ -f /etc/rancher/rke2/config.yaml ]
-            then
-              CUSTOM_DIR=$(awk '$1 ~ /data-dir:/ {print $2}' /etc/rancher/rke2/config.yaml)
-          fi
-          if [[ -z "${CUSTOM_DIR}" && -z "${DATA_DIR}" ]]
-            then
-              RKE2_DIR="/var/lib/rancher/rke2"
-            else
-              if [ -n "${DATA_DIR}" ]
-                then
-                  RKE2_DIR="${DATA_DIR}"
-                else
-                  RKE2_DIR="${CUSTOM_DIR}"
-              fi
-          fi
-          export CRI_CONFIG_FILE="${RKE2_DIR}/agent/etc/crictl.yaml"
+          sherlock-data-dir
           if $(${RKE2_DIR}/bin/crictl ps >/dev/null 2>&1)
             then
               DISTRO=rke2
@@ -115,7 +103,6 @@ sherlock() {
             else
               FOUND+="rke2"
           fi
-          techo "Detecting data-dir... ${RKE2_DIR}"
       fi
       if [ -z $DISTRO ]
         then
@@ -136,6 +123,25 @@ sherlock() {
       INIT="other"
       echo "other"
   fi
+
+}
+
+sherlock-data-dir() {
+
+  echo -n "$(timestamp): Detecting data-dir... "
+  RKE2_BIN=$(dirname $(which rke2))
+  if [ -f /etc/rancher/rke2/config.yaml ]
+    then
+      CUSTOM_DIR=$(awk '$1 ~ /data-dir:/ {print $2}' /etc/rancher/rke2/config.yaml)
+  fi
+  if [[ -z "${CUSTOM_DIR}" ]]
+    then
+      RKE2_DIR="${DATA_DIR}"
+    else
+      RKE2_DIR="${CUSTOM_DIR}"
+  fi
+  echo "${RKE2_DIR}"
+  export CRI_CONFIG_FILE="${RKE2_DIR}/agent/etc/crictl.yaml"
 
 }
 
@@ -750,7 +756,7 @@ fi
 while getopts "c:d:s:r:fph" opt; do
   case $opt in
     c)
-      DATA_DIR="${OPTARG}"
+      FLAG_DATA_DIR="${OPTARG}"
       ;;
     d)
       MKTEMP_BASEDIR="-p ${OPTARG}"
@@ -780,6 +786,7 @@ while getopts "c:d:s:r:fph" opt; do
   esac
 done
 
+DATA_DIR="${FLAG_DATA_DIR:-/var/lib/rancher/rke2}"
 setup
 disk-space
 if [ -n "${DISK_FULL}" ]
