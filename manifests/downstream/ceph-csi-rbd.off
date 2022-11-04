@@ -9,7 +9,7 @@ metadata:
   name: ceph-csi-rbd
   namespace: kube-system
 spec:
-  chart: https://%%CLUSTER%%.%%DOMAIN%%:9345/static/charts/ceph-csi-rbd-v3.3.1.tgz
+  chart: https://%%CLUSTER%%.%%DOMAIN%%:9345/static/charts/ceph-csi-rbd-v3.7.2.tgz
   targetNamespace: ceph-csi-rbd
   valuesContent: |-
     csiConfig:
