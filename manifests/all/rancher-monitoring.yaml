@@ -10,7 +10,7 @@ metadata:
   namespace: kube-system
 spec:
   jobImage: %%REGISTRY%%/%%STAGE%%/docker.io/rancher/klipper-helm:v0.4.3
-  chart: https://%%CLUSTER%%.%%DOMAIN%%:9345/static/charts/rancher-monitoring-100.1.3+up19.0.3.tgz
+  chart: https://%%CLUSTER%%.%%DOMAIN%%:9345/static/charts/rancher-monitoring-101.0.0+up19.0.3.tgz
   targetNamespace: cattle-monitoring-system
   valuesContent: |-
     global:
