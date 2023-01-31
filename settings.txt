@@ -6,7 +6,7 @@ RKEGROUP="rkeadmin"
 RKECLUSTERDIR=/home/$RKEUSER/rke-cluster
 
 # on premise registry to be used (https will always be used)
-REGISTRY="registry01.suse:5000"
+REGISTRY="registry01.suse"
 REGISTRY2="registry02.suse:5000"
 VIRTUAL_REGISTRY="registries.suse"
 
