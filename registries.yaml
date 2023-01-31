@@ -41,6 +41,13 @@ mirrors:
       - "https://%%REGISTRY2%%/v2/"
     rewrite:
       "(.*)": "%%STAGE%%/registry.suse.com/$1"
+  registry.opensuse.org:
+    endpoint:
+      - "https://%%REGISTRY%%/v2/"
+      - "https://%%REGISTRY2%%/v2/"
+    rewrite:
+      "(.*)": "%%STAGE%%/registry.opensuse.org/$1"
+
 configs:
   "%%REGISTRY%%":
     auth:
