@@ -178,6 +178,31 @@ EOF'
 	fi
 }
 
+function _PREPARE_RKE2_PSA_SERVER_CONFIG {
+	# only required on server / master not on agent/worker
+	# on rke2 1.24 we start enabling PSA and set it to restricted per default
+	# some namespaces are ignored based on rke2-pss.yaml - example taken from https://docs.rke2.io/security/pod_security_standardsl
+	if echo $RKE2_VERSION |grep "v1.24" ; then
+	# add the admission control config file
+	# be carefule in case kube-apiserver-arg: is in the config.yaml, already (i.e. due ti ACE)
+	sudo bash -c 'cat << EOF >> /etc/rancher/rke2/config.yaml
+kube-apiserver-arg:
+  - "--admission-control-config-file=/etc/rancher/rke2/rke2-pss.yaml"
+EOF'
+	# copy default rke2-pss.yaml to target
+	sudo cp -a $RKECLUSTERDIR/rke2-pss.yaml /etc/rancher/rke2/rke2-pss.yaml
+	fi
+	# different in 1.25/1.26/1.27
+	if echo $RKE2_VERSION |grep "v1.25" || echo $RKE2_VERSION |grep "v1.26" || echo $RKE2_VERSION |grep "v1.27" ; then
+		# change CIS profile to 1.23
+		sudo sed -i 's/profile:.*/profile: cis-1.23/g' /etc/rancher/rke2/config.yaml
+		# remove admission-control-config-file as RKE2 handles this automatically, now
+		sudo sed -i '/admission-control-config-file/d' /etc/rancher/rke2/config.yaml
+		# change api to v1 in /etc/rancher/rke2/rke2-pss.yaml if exists (1.24 needs v1beta1 and 1.25 and newer needs v1"
+		sudo sed -i 's#pod-security.admission.config.k8s.io/v1beta1#pod-security.admission.config.k8s.io/v1#g' /etc/rancher/rke2/rke2-pss.yaml
+	fi
+}
+
 function _PREPARE_RKE2_AGENT_CONFIG {
 	echo "Create agent config.yaml"
         sudo bash -c 'cat << EOF > /etc/rancher/rke2/config.yaml
@@ -646,6 +671,7 @@ function _JOIN_CLUSTER {
 		MASTER=1
 		WORKER=0
                 _PREPARE_RKE2_SERVER_CONFIG
+                _PREPARE_RKE2_PSA_SERVER_CONFIG
                 _PREPARE_RKE2_CLOUD_CONFIG
 		_COPY_MANIFESTS_AND_CHARTS
 		_ADJUST_CLUSTER_IDENTITY
@@ -666,6 +692,7 @@ function _JOIN_CLUSTER {
 		MASTER=1
 		WORKER=0
                 _PREPARE_RKE2_SERVER_CONFIG
+                _PREPARE_RKE2_PSA_SERVER_CONFIG
                 _PREPARE_RKE2_CLOUD_CONFIG
 		_COPY_MANIFESTS_AND_CHARTS
 		_ADJUST_CLUSTER_IDENTITY
