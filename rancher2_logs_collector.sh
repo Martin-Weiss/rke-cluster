@@ -73,16 +73,6 @@ sherlock() {
       fi
     else
       echo -n "$(timestamp): Detecting k8s distribution... "
-      if $(command -v docker >/dev/null 2>&1)
-        then
-          if $(docker ps >/dev/null 2>&1)
-            then
-              DISTRO=rke
-              echo "rke"
-            else
-              FOUND="rke"
-          fi
-      fi
       if $(command -v k3s >/dev/null 2>&1)
         then
           if $(k3s crictl ps >/dev/null 2>&1)
@@ -104,7 +94,22 @@ sherlock() {
               FOUND+="rke2"
           fi
       fi
-      if [ -z $DISTRO ]
+      if $(command -v docker >/dev/null 2>&1)
+        then
+          if $(docker ps >/dev/null 2>&1)
+            then
+              if [ -z "${DISTRO}" ]
+                then
+                  DISTRO=rke
+                  echo "rke"
+                else
+                  techo "Found rke, but another distribution ("${DISTRO}") was also found, using "${DISTRO}"..."
+              fi
+            else
+              FOUND="rke"
+          fi
+      fi
+      if [ -z ${DISTRO} ]
         then
           echo -e "\n$(timestamp): couldn't detect k8s distro"
           if [ -n "${FOUND}" ]
@@ -239,16 +244,6 @@ networking() {
   mkdir -p $TMPDIR/networking
   iptables-save > $TMPDIR/networking/iptablessave 2>&1
   ip6tables-save > $TMPDIR/networking/ip6tablessave 2>&1
-  if [ ! "${OSRELEASE}" = "sles" ]
-    then
-      IPTABLES_FLAGS="--wait 1"
-  fi
-  iptables $IPTABLES_FLAGS --numeric --verbose --list --table mangle > $TMPDIR/networking/iptablesmangle 2>&1
-  iptables $IPTABLES_FLAGS --numeric --verbose --list --table nat > $TMPDIR/networking/iptablesnat 2>&1
-  iptables $IPTABLES_FLAGS --numeric --verbose --list > $TMPDIR/networking/iptables 2>&1
-  ip6tables $IPTABLES_FLAGS --numeric --verbose --list --table mangle > $TMPDIR/networking/ip6tablesmangle 2>&1
-  ip6tables $IPTABLES_FLAGS --numeric --verbose --list --table nat > $TMPDIR/networking/ip6tablesnat 2>&1
-  ip6tables $IPTABLES_FLAGS --numeric --verbose --list > $TMPDIR/networking/ip6tables 2>&1
   if $(command -v nft >/dev/null 2>&1); then
    nft list ruleset  > $TMPDIR/networking/nft_ruleset 2>&1
   fi
@@ -271,8 +266,13 @@ networking() {
   if $(command -v ip >/dev/null 2>&1); then
     ip addr show > $TMPDIR/networking/ipaddrshow 2>&1
     ip route show table all > $TMPDIR/networking/iproute 2>&1
+    ip neighbour > $TMPDIR/networking/ipneighbour 2>&1
     ip rule show > $TMPDIR/networking/iprule 2>&1
     ip -s link show > $TMPDIR/networking/iplinkshow 2>&1
+    ip -6 neighbour > $TMPDIR/networking/ipv6neighbour 2>&1
+    ip -6 rule show > $TMPDIR/networking/ipv6rule 2>&1
+    ip -6 route show > $TMPDIR/networking/ipv6route 2>&1
+    ip -6 addr show > $TMPDIR/networking/ipv6addrshow 2>&1
   fi
   if $(command -v ifconfig >/dev/null 2>&1); then
     ifconfig -a > $TMPDIR/networking/ifconfiga
@@ -747,6 +747,8 @@ help() {
   -d    Output directory for temporary storage and .tar.gz archive (ex: -d /var/tmp)
   -s    Start day of journald and docker log collection. Specify the number of days before the current time (ex: -s 7)
   -e    End day of journald and docker log collection. Specify the number of days before the current time (ex: -e 5)
+  -S    Start date of journald and docker log collection. (ex: -S 2022-12-05)
+  -E    End date of journald and docker log collection. (ex: -E 2022-12-07)
   -r    Override k8s distribution if not automatically detected (rke|k3s|rke2)
   -p    When supplied runs with the default nice/ionice priorities, otherwise use the lowest priorities
   -f    Force log collection if the minimum space isn't available"
@@ -772,7 +774,7 @@ if [[ $EUID -ne 0 ]]
     exit 1
 fi
 
-while getopts "c:d:s:e:r:fph" opt; do
+while getopts "c:d:s:e:S:E:r:fph" opt; do
   case $opt in
     c)
       FLAG_DATA_DIR="${OPTARG}"
@@ -791,6 +793,14 @@ while getopts "c:d:s:e:r:fph" opt; do
       END_LOGGING=$(date -d "-${OPTARG} days" '+%Y-%m-%d')
       UNTIL_FLAG="--until ${END_LOGGING}"
       techo "Logging until $END_LOGGING"
+      ;;
+    S)
+      SINCE_FLAG="--since ${OPTARG}"
+      techo "Collecting logs starting ${OPTARG}"
+      ;;
+    E)
+      UNTIL_FLAG="--until ${OPTARG}"
+      techo "Collecting logs until ${OPTARG}"
       ;;
     r)
       DISTRO_FLAG="${OPTARG}"

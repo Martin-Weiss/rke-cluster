@@ -34,7 +34,7 @@ spec:
     vCenter:
       host: "vsphere.suse"
       port: 443
-      insecureFlag: "1"
+      insecureFlag: true
       datacenters: "Datacenter1"
       username: "terraform-kubernetes@vsphere.local"
       password: "Suse1234!"

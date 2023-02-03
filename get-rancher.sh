@@ -1,6 +1,7 @@
 #!/bin/bash
 #VERSIONS="2.5.12 2.6.4 2.6.5 2.6.6 2.6.7 2.6.8 2.6.9 2.7.0"
-VERSIONS="2.7.0"
+#VERSIONS="2.7.0"
+VERSIONS="2.7.1"
 for VERSION in $VERSIONS; do
 #	wget -N https://github.com/rancher/rancher/rancher-$VERSION.tgz -P charts -o rancher-v$VERSION.tgz
 	if [ ! -f helm-cli/helm ]; then
@@ -11,8 +12,10 @@ for VERSION in $VERSIONS; do
 		# add helm chart repos
 		helm-cli/helm repo add rancher-stable https://releases.rancher.com/server-charts/stable --force-update
 		helm-cli/helm repo add rancher-latest https://releases.rancher.com/server-charts/latest --force-update
+		helm-cli/helm repo add rancher-prime https://charts.rancher.com/server-charts/prime --force-update
 		echo "downloading rancher-v$VERSION.tgz"
-		helm-cli/helm fetch rancher-stable/rancher --version $VERSION -d charts
+		#helm-cli/helm fetch rancher-stable/rancher --version $VERSION -d charts
+		helm-cli/helm fetch rancher-prime/rancher --version $VERSION -d charts
 		if [ ! $? == 0 ]; then
 			echo "version $VERSION not in stable so fetching from latest"
 			helm-cli/helm fetch rancher-latest/rancher --version $VERSION -d charts

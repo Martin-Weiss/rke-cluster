@@ -47,6 +47,12 @@ mirrors:
       - "https://%%REGISTRY2%%/v2/"
     rewrite:
       "(.*)": "%%STAGE%%/registry.opensuse.org/$1"
+  registry.rancher.com:
+    endpoint:
+      - "https://%%REGISTRY%%/v2/"
+      - "https://%%REGISTRY2%%/v2/"
+    rewrite:
+      "(.*)": "%%STAGE%%/registry.rancher.com/$1"
 
 configs:
   "%%REGISTRY%%":
