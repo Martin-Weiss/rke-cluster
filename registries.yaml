@@ -53,6 +53,12 @@ mirrors:
       - "https://%%REGISTRY2%%/v2/"
     rewrite:
       "(.*)": "%%STAGE%%/registry.rancher.com/$1"
+  ghcr.io:
+    endpoint:
+      - "https://%%REGISTRY%%/v2/"
+      - "https://%%REGISTRY2%%/v2/"
+    rewrite:
+      "(.*)": "%%STAGE%%/ghcr.io/$1"
 
 configs:
   "%%REGISTRY%%":
