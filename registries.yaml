@@ -59,6 +59,12 @@ mirrors:
       - "https://%%REGISTRY2%%/v2/"
     rewrite:
       "(.*)": "%%STAGE%%/ghcr.io/$1"
+  registry.k8s.io:
+    endpoint:
+      - "https://%%REGISTRY%%/v2/"
+      - "https://%%REGISTRY2%%/v2/"
+    rewrite:
+      "(.*)": "%%STAGE%%/registry.k8s.io/$1"
 
 configs:
   "%%REGISTRY%%":
