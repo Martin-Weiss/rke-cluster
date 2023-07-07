@@ -4,7 +4,8 @@
 #VERSIONS="2.7.1"
 #VERSIONS="2.7.2"
 #VERSIONS="2.7.3"
-VERSIONS="2.7.4"
+#VERSIONS="2.7.4"
+VERSIONS="2.7.5"
 for VERSION in $VERSIONS; do
 #	wget -N https://github.com/rancher/rancher/rancher-$VERSION.tgz -P charts -o rancher-v$VERSION.tgz
 	if [ ! -f helm-cli/helm ]; then
