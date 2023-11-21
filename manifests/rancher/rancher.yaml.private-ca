@@ -35,7 +35,7 @@ metadata:
   namespace: kube-system
 spec:
   jobImage: %%REGISTRY%%/%%STAGE%%/docker.io/rancher/klipper-helm:v0.4.3
-  chart: https://%%CLUSTER%%.%%DOMAIN%%:9345/static/charts/rancher-v2.7.5.tgz
+  chart: https://%%CLUSTER%%.%%DOMAIN%%:9345/static/charts/rancher-v2.7.9.tgz
   targetNamespace: cattle-system
   valuesContent: |-
     busyboxImage: %%REGISTRY%%/%%STAGE%%/docker.io/busybox
@@ -47,3 +47,13 @@ spec:
     ingress:
       tls:
         source: secret
+    global:
+      cattle:
+        psp:
+          # will default to true on 1.24 and below, and false for 1.25 and above
+          # can be changed manually to true or false to bypass version checks and force that option
+          enabled: false
+    extraEnv:
+    - name: CATTLE_PROMETHEUS_METRICS
+      value: "true"
+

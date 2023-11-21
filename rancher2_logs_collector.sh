@@ -21,10 +21,16 @@ TIMEOUT=60
 PRIORITY_NICE=19 # lowest
 PRIORITY_IONICE="idle" # lowest
 
+# Set the dmesg date to use English, as non-English environments such as Japanese will display non-English characters in it.
+LANG=C
+
 setup() {
 
-  TMPDIR=$(mktemp -d $MKTEMP_BASEDIR) || { techo 'Creating temporary directory failed, please check options'; exit 1; }
-  techo "Created ${TMPDIR}"
+  TMPDIR_BASE=$(mktemp -d $MKTEMP_BASEDIR) || { techo 'Creating temporary directory failed, please check options'; exit 1; }
+  techo "Created ${TMPDIR_BASE}"
+  LOGNAME="$(hostname)-$(date +'%Y-%m-%d_%H_%M_%S')"
+  mkdir -p "${TMPDIR_BASE}/${LOGNAME}"
+  TMPDIR="${TMPDIR_BASE}/${LOGNAME}"
 
 }
 
@@ -136,9 +142,9 @@ sherlock() {
 sherlock-data-dir() {
 
   RKE2_BIN=$(dirname $(which rke2))
-  if [ -f /etc/rancher/rke2/config.yaml ]
+  if [ -f /etc/rancher/${DISTRO}/config.yaml ]
     then
-      CUSTOM_DIR=$(awk '$1 ~ /data-dir:/ {print $2}' /etc/rancher/rke2/config.yaml)
+      CUSTOM_DIR=$(awk '$1 ~ /data-dir:/ {print $2}' /etc/rancher/${DISTRO}/config.yaml)
   fi
   if [[ -z "${CUSTOM_DIR}" ]]
     then
@@ -238,14 +244,35 @@ system-rhel() {
 
 }
 
+system-sles() {
+
+  if $(command -v rpm >/dev/null 2>&1); then
+    rpm -qa > $TMPDIR/systeminfo/packages-rpm 2>&1
+  fi
+  if $(command -v apparmor_status >/dev/null 2>&1); then
+    apparmor_status > $TMPDIR/systeminfo/sles-apparmorstatus 2>&1
+  fi
+
+}
+
 networking() {
 
   techo "Collecting network info"
   mkdir -p $TMPDIR/networking
   iptables-save > $TMPDIR/networking/iptablessave 2>&1
   ip6tables-save > $TMPDIR/networking/ip6tablessave 2>&1
+  if [ ! "${OSRELEASE}" = "sles" ]
+    then
+      IPTABLES_FLAGS="--wait 1"
+  fi
+  iptables $IPTABLES_FLAGS --numeric --verbose --list --table mangle > $TMPDIR/networking/iptablesmangle 2>&1
+  iptables $IPTABLES_FLAGS --numeric --verbose --list --table nat > $TMPDIR/networking/iptablesnat 2>&1
+  iptables $IPTABLES_FLAGS --numeric --verbose --list > $TMPDIR/networking/iptables 2>&1
+  ip6tables $IPTABLES_FLAGS --numeric --verbose --list --table mangle > $TMPDIR/networking/ip6tablesmangle 2>&1
+  ip6tables $IPTABLES_FLAGS --numeric --verbose --list --table nat > $TMPDIR/networking/ip6tablesnat 2>&1
+  ip6tables $IPTABLES_FLAGS --numeric --verbose --list > $TMPDIR/networking/ip6tables 2>&1
   if $(command -v nft >/dev/null 2>&1); then
-   nft list ruleset  > $TMPDIR/networking/nft_ruleset 2>&1
+    nft list ruleset  > $TMPDIR/networking/nft_ruleset 2>&1
   fi
   if $(command -v netstat >/dev/null 2>&1); then
     if [ "${OSRELEASE}" = "rancheros" ]
@@ -295,6 +322,44 @@ networking() {
 
 }
 
+provisioning-crds() {
+
+  if [[ "${DISTRO}" = "rke" && -f /etc/kubernetes/ssl/kubecfg-kube-controller-manager.yaml ]]
+    then
+      KUBECONFIG=/etc/kubernetes/ssl/kubecfg-kube-controller-manager.yaml
+      ctlcmd="docker exec kubelet kubectl --kubeconfig=${KUBECONFIG}"
+      CONTROL_PLANE=1
+  elif [[ "${DISTRO}" = "k3s" &&  -d /var/lib/rancher/${DISTRO}/server ]]
+    then
+      KUBECONFIG=/etc/rancher/${DISTRO}/k3s.yaml
+      ctlcmd="k3s kubectl --kubeconfig=${KUBECONFIG}"
+      CONTROL_PLANE=1
+  elif [[ "${DISTRO}" = "rke2" &&  -f /etc/rancher/${DISTRO}/rke2.yaml ]]
+    then
+      KUBECONFIG=/etc/rancher/${DISTRO}/rke2.yaml
+      ctlcmd="${RKE2_DIR}/bin/kubectl --kubeconfig=${KUBECONFIG}"
+      CONTROL_PLANE=1
+  fi
+
+  if [ -n "$CONTROL_PLANE" ]
+    then
+      RANCHER_PODS=$(${ctlcmd} get pod -l app=rancher -n cattle-system --ignore-not-found | wc -l)
+      if [ $RANCHER_PODS -ne 0 ]
+        then
+          techo "Collecting provisioning info"
+          mkdir -p $TMPDIR/${DISTRO}/kubectl/rancher-prov
+          CRDS=("clusters.management.cattle.io" "nodes.management.cattle.io" "custommachines.rke.cattle.io" "etcdsnapshots.rke.cattle.io" "rkebootstraps.rke.cattle.io" "rkebootstraptemplates.rke.cattle.io" "rkeclusters.rke.cattle.io" "rkecontrolplanes.rke.cattle.io" "clusters.provisioning.cattle.io" "amazonec2machines.rke-machine.cattle.io" "amazonec2machinetemplates.rke-machine.cattle.io" "azuremachines.rke-machine.cattle.io" "azuremachinetemplates.rke-machine.cattle.io" "digitaloceanmachines.rke-machine.cattle.io" "digitaloceanmachinetemplates.rke-machine.cattle.io" "harvestermachines.rke-machine.cattle.io" "harvestermachinetemplates.rke-machine.cattle.io" "linodemachines.rke-machine.cattle.io" "linodemachinetemplates.rke-machine.cattle.io" "vmwarevspheremachines.rke-machine.cattle.io" "vmwarevspheremachinetemplates.rke-machine.cattle.io" "amazonec2configs.rke-machine-config.cattle.io" "azureconfigs.rke-machine-config.cattle.io" "digitaloceanconfigs.rke-machine-config.cattle.io" "harvesterconfigs.rke-machine-config.cattle.io" "linodeconfigs.rke-machine-config.cattle.io" "vmwarevsphereconfigs.rke-machine-config.cattle.io")
+
+          for item in "${CRDS[@]}"; do
+            ${ctlcmd} get ${item} -o yaml -A > $TMPDIR/${DISTRO}/kubectl/rancher-prov/${item} 2>&1
+          done
+
+          ${ctlcmd} get configmap cattle-controllers -n kube-system -o yaml > $TMPDIR/${DISTRO}/kubectl/rancher-prov/cattle-controller-cfgmap 2>&1
+      fi
+  fi
+
+}
+
 rke-logs() {
 
   techo "Collecting docker info"
@@ -314,19 +379,33 @@ rke-logs() {
 k3s-logs() {
 
   techo "Collecting k3s info"
-  mkdir -p $TMPDIR/k3s/crictl
-  k3s check-config > $TMPDIR/k3s/check-config 2>&1
-  k3s crictl ps -a > $TMPDIR/k3s/crictl/psa 2>&1
-  k3s crictl pods > $TMPDIR/k3s/crictl/pods 2>&1
-  k3s crictl info > $TMPDIR/k3s/crictl/info 2>&1
-  k3s crictl stats -a > $TMPDIR/k3s/crictl/statsa 2>&1
-  k3s crictl version > $TMPDIR/k3s/crictl/version 2>&1
-  k3s crictl images > $TMPDIR/k3s/crictl/images 2>&1
-  k3s crictl imagefsinfo > $TMPDIR/k3s/crictl/imagefsinfo 2>&1
-  k3s crictl stats -a > $TMPDIR/k3s/crictl/statsa 2>&1
-  if [ -f /etc/systemd/system/k3s.service ]
+  mkdir -p $TMPDIR/${DISTRO}/crictl
+  k3s check-config > $TMPDIR/${DISTRO}/check-config 2>&1
+  k3s crictl ps -a > $TMPDIR/${DISTRO}/crictl/psa 2>&1
+  k3s crictl pods > $TMPDIR/${DISTRO}/crictl/pods 2>&1
+  k3s crictl info > $TMPDIR/${DISTRO}/crictl/info 2>&1
+  k3s crictl stats -a > $TMPDIR/${DISTRO}/crictl/statsa 2>&1
+  k3s crictl version > $TMPDIR/${DISTRO}/crictl/version 2>&1
+  k3s crictl images > $TMPDIR/${DISTRO}/crictl/images 2>&1
+  k3s crictl imagefsinfo > $TMPDIR/${DISTRO}/crictl/imagefsinfo 2>&1
+  k3s crictl stats -a > $TMPDIR/${DISTRO}/crictl/statsa 2>&1
+  if [ -f /etc/systemd/system/${DISTRO}.service ]
     then
-      cp -p /etc/systemd/system/k3s.service $TMPDIR/k3s/k3s.service
+      sed -e '/--token/{n;s/.*/\t<token redacted>/}' \
+          -e '/--etcd-s3-access-key/{n;s/.*/\t<access-key redacted>/}' \
+          -e '/--etcd-s3-secret-key/{n;s/.*/\t<secret-key redacted>/}' \
+          /etc/systemd/system/${DISTRO}*.service >& $TMPDIR/${DISTRO}/${DISTRO}.service
+  fi
+  if [ -f /etc/rancher/${DISTRO}/config.yaml ]
+    then
+      grep -Ev "token|access-key|secret-key" /etc/rancher/${DISTRO}/config.yaml >& $TMPDIR/${DISTRO}/config.yaml
+  fi
+  if [ -d /etc/rancher/${DISTRO}/config.yaml.d ]
+    then
+      for _FILE in $(ls /etc/rancher/${DISTRO}/config.yaml.d)
+        do
+          grep -Ev "token|access-key|secret-key" /etc/rancher/${DISTRO}/config.yaml.d/$_FILE >& $TMPDIR/${DISTRO}/$_FILE
+      done
   fi
 
 }
@@ -334,36 +413,36 @@ k3s-logs() {
 rke2-logs() {
 
   techo "Collecting rke2 info"
-  mkdir -p $TMPDIR/rke2/crictl
-  ${RKE2_BIN}/rke2 --version > $TMPDIR/rke2/version 2>&1
-  ${RKE2_DIR}/bin/crictl --version > $TMPDIR/rke2/crictl/crictl-version 2>&1
-  ${RKE2_DIR}/bin/containerd --version > $TMPDIR/rke2/crictl/containerd-version 2>&1
-  ${RKE2_DIR}/bin/runc --version > $TMPDIR/rke2/crictl/runc-version 2>&1
-  ${RKE2_DIR}/bin/crictl ps -a > $TMPDIR/rke2/crictl/psa 2>&1
-  ${RKE2_DIR}/bin/crictl pods > $TMPDIR/rke2/crictl/pods 2>&1
-  ${RKE2_DIR}/bin/crictl info > $TMPDIR/rke2/crictl/info 2>&1
-  ${RKE2_DIR}/bin/crictl stats -a > $TMPDIR/rke2/crictl/statsa 2>&1
-  ${RKE2_DIR}/bin/crictl version > $TMPDIR/rke2/crictl/version 2>&1
-  ${RKE2_DIR}/bin/crictl images > $TMPDIR/rke2/crictl/images 2>&1
-  ${RKE2_DIR}/bin/crictl imagefsinfo > $TMPDIR/rke2/crictl/imagefsinfo 2>&1
-  ${RKE2_DIR}/bin/crictl stats -a > $TMPDIR/rke2/crictl/statsa 2>&1
+  mkdir -p $TMPDIR/${DISTRO}/crictl
+  ${RKE2_BIN}/rke2 --version > $TMPDIR/${DISTRO}/version 2>&1
+  ${RKE2_DIR}/bin/crictl --version > $TMPDIR/${DISTRO}/crictl/crictl-version 2>&1
+  ${RKE2_DIR}/bin/containerd --version > $TMPDIR/${DISTRO}/crictl/containerd-version 2>&1
+  ${RKE2_DIR}/bin/runc --version > $TMPDIR/${DISTRO}/crictl/runc-version 2>&1
+  ${RKE2_DIR}/bin/crictl ps -a > $TMPDIR/${DISTRO}/crictl/psa 2>&1
+  ${RKE2_DIR}/bin/crictl pods > $TMPDIR/${DISTRO}/crictl/pods 2>&1
+  ${RKE2_DIR}/bin/crictl info > $TMPDIR/${DISTRO}/crictl/info 2>&1
+  ${RKE2_DIR}/bin/crictl stats -a > $TMPDIR/${DISTRO}/crictl/statsa 2>&1
+  ${RKE2_DIR}/bin/crictl version > $TMPDIR/${DISTRO}/crictl/version 2>&1
+  ${RKE2_DIR}/bin/crictl images > $TMPDIR/${DISTRO}/crictl/images 2>&1
+  ${RKE2_DIR}/bin/crictl imagefsinfo > $TMPDIR/${DISTRO}/crictl/imagefsinfo 2>&1
+  ${RKE2_DIR}/bin/crictl stats -a > $TMPDIR/${DISTRO}/crictl/statsa 2>&1
   if [ -f /usr/local/lib/systemd/system/rke2-agent.service ]
     then
-      cp -p /usr/local/lib/systemd/system/rke2*.service $TMPDIR/rke2/
+      cp -p /usr/local/lib/systemd/system/${DISTRO}*.service $TMPDIR/${DISTRO}/
   fi
-  if [ -f /var/lib/rancher/rke2/agent/containerd/containerd.log ]
+  if [ -f /var/lib/rancher/${DISTRO}/agent/containerd/containerd.log ]
     then
-      cp -p /var/lib/rancher/rke2/agent/containerd/containerd.log $TMPDIR/rke2
+      cp -p /var/lib/rancher/${DISTRO}/agent/containerd/containerd.log $TMPDIR/${DISTRO}
   fi
-  if [ -f /etc/rancher/rke2/config.yaml ]
+  if [ -f /etc/rancher/${DISTRO}/config.yaml ]
     then
-      grep -v token /etc/rancher/rke2/config.yaml >& $TMPDIR/rke2/config.yaml
+      grep -Ev "token|access-key|secret-key" /etc/rancher/${DISTRO}/config.yaml >& $TMPDIR/${DISTRO}/config.yaml
   fi
-  if [ -d /etc/rancher/rke2/config.yaml.d ]
+  if [ -d /etc/rancher/${DISTRO}/config.yaml.d ]
     then
-      for _FILE in $(ls /etc/rancher/rke2/config.yaml.d)
+      for _FILE in $(ls /etc/rancher/${DISTRO}/config.yaml.d)
         do
-          grep -v token /etc/rancher/rke2/config.yaml.d/$_FILE >& $TMPDIR/rke2/$_FILE
+          grep -Ev "token|access-key|secret-key" /etc/rancher/${DISTRO}/config.yaml.d/$_FILE >& $TMPDIR/${DISTRO}/$_FILE
       done
   fi
 
@@ -372,7 +451,6 @@ rke2-logs() {
 rke-k8s() {
 
   techo "Collecting rancher logs"
-  # Discover any server or agent running
   mkdir -p $TMPDIR/rancher/{containerlogs,containerinspect}
   RANCHERSERVERS=$(docker ps -a | grep -E "k8s_rancher_rancher|rancher/rancher:|rancher/rancher " | awk '{ print $1 }')
   RANCHERAGENTS=$(docker ps -a | grep -E "k8s_agent_cattle|rancher/rancher-agent:|rancher/rancher-agent " | awk '{ print $1 }')
@@ -387,42 +465,39 @@ rke-k8s() {
     docker logs $SINCE_FLAG $UNTIL_FLAG -t $RANCHERAGENT 2>&1 | sed 's/with token.*/with token REDACTED/g' > $TMPDIR/rancher/containerlogs/agent-$RANCHERAGENT 2>&1
   done
 
-  # K8s Docker container logging
   techo "Collecting k8s component logs"
-  mkdir -p $TMPDIR/k8s/{containerlogs,containerinspect}
+  mkdir -p $TMPDIR/${DISTRO}/{containerlogs,containerinspect}
   for KUBE_CONTAINER in "${KUBE_CONTAINERS[@]}"; do
     if [ "$(docker ps -a -q -f name=$KUBE_CONTAINER)" ]; then
-      docker inspect $KUBE_CONTAINER > $TMPDIR/k8s/containerinspect/$KUBE_CONTAINER 2>&1
-      docker logs $SINCE_FLAG $UNTIL_FLAG -t $KUBE_CONTAINER > $TMPDIR/k8s/containerlogs/$KUBE_CONTAINER 2>&1
+      docker inspect $KUBE_CONTAINER > $TMPDIR/${DISTRO}/containerinspect/$KUBE_CONTAINER 2>&1
+      docker logs $SINCE_FLAG $UNTIL_FLAG -t $KUBE_CONTAINER > $TMPDIR/${DISTRO}/containerlogs/$KUBE_CONTAINER 2>&1
     fi
   done
 
-  # System pods
   techo "Collecting system pod logs"
-  mkdir -p $TMPDIR/k8s/{podlogs,podinspect}
+  mkdir -p $TMPDIR/${DISTRO}/{podlogs,podinspect}
   for SYSTEM_NAMESPACE in "${SYSTEM_NAMESPACES[@]}"; do
     CONTAINERS=$(docker ps -a --filter name=$SYSTEM_NAMESPACE --format "{{.Names}}")
     for CONTAINER in $CONTAINERS; do
-      docker inspect $CONTAINER > $TMPDIR/k8s/podinspect/$CONTAINER 2>&1
-      docker logs $SINCE_FLAG $UNTIL_FLAG -t $CONTAINER > $TMPDIR/k8s/podlogs/$CONTAINER 2>&1
+      docker inspect $CONTAINER > $TMPDIR/${DISTRO}/podinspect/$CONTAINER 2>&1
+      docker logs $SINCE_FLAG $UNTIL_FLAG -t $CONTAINER > $TMPDIR/${DISTRO}/podlogs/$CONTAINER 2>&1
     done
   done
 
-  # Node and pod overview
-  mkdir -p $TMPDIR/k8s/kubectl
+  mkdir -p $TMPDIR/${DISTRO}/kubectl
   KUBECONFIG=/etc/kubernetes/ssl/kubecfg-kube-node.yaml
-  docker exec kubelet kubectl get nodes -o wide --kubeconfig=$KUBECONFIG > $TMPDIR/k8s/kubectl/nodes 2>&1
-  docker exec kubelet kubectl describe nodes --kubeconfig=$KUBECONFIG > $TMPDIR/k8s/kubectl/nodesdescribe 2>&1
-  docker exec kubelet kubectl get pods -o wide --all-namespaces --kubeconfig=$KUBECONFIG > $TMPDIR/k8s/kubectl/pods 2>&1
-  docker exec kubelet kubectl get svc -o wide --all-namespaces --kubeconfig=$KUBECONFIG > $TMPDIR/k8s/kubectl/services 2>&1
-  docker exec kubelet kubectl get endpoints -o wide --all-namespaces --kubeconfig=$KUBECONFIG > $TMPDIR/k8s/kubectl/endpoints 2>&1
-  docker exec kubelet kubectl get configmaps --all-namespaces --kubeconfig=$KUBECONFIG > $TMPDIR/k8s/kubectl/configmaps 2>&1
-  docker exec kubelet kubectl get namespaces --kubeconfig=$KUBECONFIG > $TMPDIR/k8s/kubectl/namespaces 2>&1
+  docker exec kubelet kubectl get nodes -o wide --kubeconfig=$KUBECONFIG > $TMPDIR/${DISTRO}/kubectl/nodes 2>&1
+  docker exec kubelet kubectl describe nodes --kubeconfig=$KUBECONFIG > $TMPDIR/${DISTRO}/kubectl/nodesdescribe 2>&1
+  docker exec kubelet kubectl get pods -o wide --all-namespaces --kubeconfig=$KUBECONFIG > $TMPDIR/${DISTRO}/kubectl/pods 2>&1
+  docker exec kubelet kubectl get svc -o wide --all-namespaces --kubeconfig=$KUBECONFIG > $TMPDIR/${DISTRO}/kubectl/services 2>&1
+  docker exec kubelet kubectl get endpoints -o wide --all-namespaces --kubeconfig=$KUBECONFIG > $TMPDIR/${DISTRO}/kubectl/endpoints 2>&1
+  docker exec kubelet kubectl get configmaps --all-namespaces --kubeconfig=$KUBECONFIG > $TMPDIR/${DISTRO}/kubectl/configmaps 2>&1
+  docker exec kubelet kubectl get namespaces --kubeconfig=$KUBECONFIG > $TMPDIR/${DISTRO}/kubectl/namespaces 2>&1
 
   techo "Collecting nginx-proxy info"
   if docker inspect nginx-proxy >/dev/null 2>&1; then
-    mkdir -p $TMPDIR/k8s/nginx-proxy
-    docker exec nginx-proxy cat /etc/nginx/nginx.conf > $TMPDIR/k8s/nginx-proxy/nginx.conf 2>&1
+    mkdir -p $TMPDIR/${DISTRO}/nginx-proxy
+    docker exec nginx-proxy cat /etc/nginx/nginx.conf > $TMPDIR/${DISTRO}/nginx-proxy/nginx.conf 2>&1
   fi
 
 }
@@ -430,42 +505,42 @@ rke-k8s() {
 k3s-k8s() {
 
   techo "Collecting k3s cluster logs"
-  if [ -d /var/lib/rancher/k3s/agent ]; then
-    mkdir -p $TMPDIR/k3s/kubectl
-    KUBECONFIG=/var/lib/rancher/k3s/agent/kubelet.kubeconfig
-    k3s kubectl --kubeconfig=$KUBECONFIG get nodes -o wide > $TMPDIR/k3s/kubectl/nodes 2>&1
-    k3s kubectl --kubeconfig=$KUBECONFIG describe nodes > $TMPDIR/k3s/kubectl/nodesdescribe 2>&1
-    k3s kubectl --kubeconfig=$KUBECONFIG version > $TMPDIR/k3s/kubectl/version 2>&1
-    k3s kubectl --kubeconfig=$KUBECONFIG get pods -o wide --all-namespaces > $TMPDIR/k3s/kubectl/pods 2>&1
-    k3s kubectl --kubeconfig=$KUBECONFIG get svc -o wide --all-namespaces > $TMPDIR/k3s/kubectl/services 2>&1
+  if [ -d /var/lib/rancher/${DISTRO}/agent ]; then
+    mkdir -p $TMPDIR/${DISTRO}/kubectl
+    KUBECONFIG=/var/lib/rancher/${DISTRO}/agent/kubelet.kubeconfig
+    k3s kubectl --kubeconfig=$KUBECONFIG get nodes -o wide > $TMPDIR/${DISTRO}/kubectl/nodes 2>&1
+    k3s kubectl --kubeconfig=$KUBECONFIG describe nodes > $TMPDIR/${DISTRO}/kubectl/nodesdescribe 2>&1
+    k3s kubectl --kubeconfig=$KUBECONFIG version > $TMPDIR/${DISTRO}/kubectl/version 2>&1
+    k3s kubectl --kubeconfig=$KUBECONFIG get pods -o wide --all-namespaces > $TMPDIR/${DISTRO}/kubectl/pods 2>&1
+    k3s kubectl --kubeconfig=$KUBECONFIG get svc -o wide --all-namespaces > $TMPDIR/${DISTRO}/kubectl/services 2>&1
   fi
 
-  if [ -d /var/lib/rancher/k3s/server ]; then
+  if [ -d /var/lib/rancher/${DISTRO}/server ]; then
     unset KUBECONFIG
-    kubectl api-resources > $TMPDIR/k3s/kubectl/api-resources 2>&1
+    k3s kubectl api-resources > $TMPDIR/${DISTRO}/kubectl/api-resources 2>&1
     K3S_OBJECTS=(clusterroles clusterrolebindings crds mutatingwebhookconfigurations namespaces nodes pv validatingwebhookconfigurations)
-    K3S_OBJECTS_NAMESPACED=(apiservices configmaps cronjobs deployments daemonsets endpoints events helmcharts hpa ingress jobs leases pods pvc replicasets roles rolebindings statefulsets)
+    K3S_OBJECTS_NAMESPACED=(apiservices configmaps cronjobs deployments daemonsets endpoints events helmcharts hpa ingress jobs leases networkpolicies pods pvc replicasets roles rolebindings statefulsets)
     for OBJECT in "${K3S_OBJECTS[@]}"; do
-      k3s kubectl get ${OBJECT} -o wide > $TMPDIR/k3s/kubectl/${OBJECT} 2>&1
+      k3s kubectl get ${OBJECT} -o wide > $TMPDIR/${DISTRO}/kubectl/${OBJECT} 2>&1
     done
     for OBJECT in "${K3S_OBJECTS_NAMESPACED[@]}"; do
-      k3s kubectl get ${OBJECT} --all-namespaces -o wide > $TMPDIR/k3s/kubectl/${OBJECT} 2>&1
+      k3s kubectl get ${OBJECT} --all-namespaces -o wide > $TMPDIR/${DISTRO}/kubectl/${OBJECT} 2>&1
     done
   fi
 
-  mkdir -p $TMPDIR/k3s/podlogs
+  mkdir -p $TMPDIR/${DISTRO}/podlogs
   techo "Collecting system pod logs"
-  if [ -d /var/lib/rancher/k3s/server ]; then
+  if [ -d /var/lib/rancher/${DISTRO}/server ]; then
     for SYSTEM_NAMESPACE in "${SYSTEM_NAMESPACES[@]}"; do
       for SYSTEM_POD in $(k3s kubectl -n $SYSTEM_NAMESPACE get pods --no-headers -o custom-columns=NAME:.metadata.name); do
-        k3s kubectl -n $SYSTEM_NAMESPACE logs --all-containers $SYSTEM_POD > $TMPDIR/k3s/podlogs/$SYSTEM_NAMESPACE-$SYSTEM_POD 2>&1
-        k3s kubectl -n $SYSTEM_NAMESPACE logs -p --all-containers $SYSTEM_POD > $TMPDIR/k3s/podlogs/$SYSTEM_NAMESPACE-$SYSTEM_POD-previous 2>&1
+        k3s kubectl -n $SYSTEM_NAMESPACE logs --all-containers $SYSTEM_POD > $TMPDIR/${DISTRO}/podlogs/$SYSTEM_NAMESPACE-$SYSTEM_POD 2>&1
+        k3s kubectl -n $SYSTEM_NAMESPACE logs -p --all-containers $SYSTEM_POD > $TMPDIR/${DISTRO}/podlogs/$SYSTEM_NAMESPACE-$SYSTEM_POD-previous 2>&1
       done
     done
-  elif [ -d /var/lib/rancher/k3s/agent ]; then
+  elif [ -d /var/lib/rancher/${DISTRO}/agent ]; then
     for SYSTEM_NAMESPACE in "${SYSTEM_NAMESPACES[@]}"; do
       if ls -d /var/log/pods/$SYSTEM_NAMESPACE* > /dev/null 2>&1; then
-        cp -r -p /var/log/pods/$SYSTEM_NAMESPACE* $TMPDIR/k3s/podlogs/
+        cp -r -p /var/log/pods/$SYSTEM_NAMESPACE* $TMPDIR/${DISTRO}/podlogs/
       fi
     done
   fi
@@ -476,53 +551,122 @@ rke2-k8s() {
 
   techo "Collecting rke2 cluster logs"
   if [ -f ${RKE2_DIR}/agent/kubelet.kubeconfig ]; then
-    mkdir -p $TMPDIR/rke2/kubectl
+    mkdir -p $TMPDIR/${DISTRO}/kubectl
     KUBECONFIG=${RKE2_DIR}/agent/kubelet.kubeconfig
-    ${RKE2_DIR}/bin/kubectl --kubeconfig=$KUBECONFIG get nodes -o wide > $TMPDIR/rke2/kubectl/nodes 2>&1
-    ${RKE2_DIR}/bin/kubectl --kubeconfig=$KUBECONFIG describe nodes > $TMPDIR/rke2/kubectl/nodesdescribe 2>&1
-    ${RKE2_DIR}/bin/kubectl --kubeconfig=$KUBECONFIG version > $TMPDIR/rke2/kubectl/version 2>&1
-    ${RKE2_DIR}/bin/kubectl --kubeconfig=$KUBECONFIG get pods -o wide --all-namespaces > $TMPDIR/rke2/kubectl/pods 2>&1
-    ${RKE2_DIR}/bin/kubectl --kubeconfig=$KUBECONFIG get svc -o wide --all-namespaces > $TMPDIR/rke2/kubectl/services 2>&1
+    ${RKE2_DIR}/bin/kubectl --kubeconfig=$KUBECONFIG get nodes -o wide > $TMPDIR/${DISTRO}/kubectl/nodes 2>&1
+    ${RKE2_DIR}/bin/kubectl --kubeconfig=$KUBECONFIG describe nodes > $TMPDIR/${DISTRO}/kubectl/nodesdescribe 2>&1
+    ${RKE2_DIR}/bin/kubectl --kubeconfig=$KUBECONFIG version > $TMPDIR/${DISTRO}/kubectl/version 2>&1
+    ${RKE2_DIR}/bin/kubectl --kubeconfig=$KUBECONFIG get pods -o wide --all-namespaces > $TMPDIR/${DISTRO}/kubectl/pods 2>&1
+    ${RKE2_DIR}/bin/kubectl --kubeconfig=$KUBECONFIG get svc -o wide --all-namespaces > $TMPDIR/${DISTRO}/kubectl/services 2>&1
   fi
 
-  if [ -f /etc/rancher/rke2/rke2.yaml ]; then
-    KUBECONFIG=/etc/rancher/rke2/rke2.yaml
-    ${RKE2_DIR}/bin/kubectl --kubeconfig=$KUBECONFIG api-resources > $TMPDIR/rke2/kubectl/api-resources 2>&1
+  if [ -f /etc/rancher/${DISTRO}/rke2.yaml ]; then
+    KUBECONFIG=/etc/rancher/${DISTRO}/rke2.yaml
+    ${RKE2_DIR}/bin/kubectl --kubeconfig=$KUBECONFIG api-resources > $TMPDIR/${DISTRO}/kubectl/api-resources 2>&1
     RKE2_OBJECTS=(clusterroles clusterrolebindings crds mutatingwebhookconfigurations namespaces nodes pv validatingwebhookconfigurations)
-    RKE2_OBJECTS_NAMESPACED=(apiservices configmaps cronjobs deployments daemonsets endpoints events helmcharts hpa ingress jobs leases pods pvc replicasets roles rolebindings statefulsets)
+    RKE2_OBJECTS_NAMESPACED=(apiservices configmaps cronjobs deployments daemonsets endpoints events helmcharts hpa ingress jobs leases networkpolicies pods pvc replicasets roles rolebindings statefulsets)
     for OBJECT in "${RKE2_OBJECTS[@]}"; do
-      ${RKE2_DIR}/bin/kubectl --kubeconfig=$KUBECONFIG get ${OBJECT} -o wide > $TMPDIR/rke2/kubectl/${OBJECT} 2>&1
+      ${RKE2_DIR}/bin/kubectl --kubeconfig=$KUBECONFIG get ${OBJECT} -o wide > $TMPDIR/${DISTRO}/kubectl/${OBJECT} 2>&1
     done
     for OBJECT in "${RKE2_OBJECTS_NAMESPACED[@]}"; do
-      ${RKE2_DIR}/bin/kubectl --kubeconfig=$KUBECONFIG get ${OBJECT} --all-namespaces -o wide > $TMPDIR/rke2/kubectl/${OBJECT} 2>&1
+      ${RKE2_DIR}/bin/kubectl --kubeconfig=$KUBECONFIG get ${OBJECT} --all-namespaces -o wide > $TMPDIR/${DISTRO}/kubectl/${OBJECT} 2>&1
     done
   fi
 
-  mkdir -p $TMPDIR/rke2/podlogs
+  mkdir -p $TMPDIR/${DISTRO}/podlogs
   techo "Collecting rke2 system pod logs"
-  if [ -f /etc/rancher/rke2/rke2.yaml ]; then
-    KUBECONFIG=/etc/rancher/rke2/rke2.yaml
+  if [ -f /etc/rancher/${DISTRO}/rke2.yaml ]; then
+    KUBECONFIG=/etc/rancher/${DISTRO}/rke2.yaml
     for SYSTEM_NAMESPACE in "${SYSTEM_NAMESPACES[@]}"; do
       for SYSTEM_POD in $(${RKE2_DIR}/bin/kubectl --kubeconfig=$KUBECONFIG -n $SYSTEM_NAMESPACE get pods --no-headers -o custom-columns=NAME:.metadata.name); do
-        ${RKE2_DIR}/bin/kubectl --kubeconfig=$KUBECONFIG -n $SYSTEM_NAMESPACE logs --all-containers $SYSTEM_POD > $TMPDIR/rke2/podlogs/$SYSTEM_NAMESPACE-$SYSTEM_POD 2>&1
-        ${RKE2_DIR}/bin/kubectl --kubeconfig=$KUBECONFIG -n $SYSTEM_NAMESPACE logs -p --all-containers $SYSTEM_POD > $TMPDIR/rke2/podlogs/$SYSTEM_NAMESPACE-$SYSTEM_POD-previous 2>&1
+        ${RKE2_DIR}/bin/kubectl --kubeconfig=$KUBECONFIG -n $SYSTEM_NAMESPACE logs --all-containers $SYSTEM_POD > $TMPDIR/${DISTRO}/podlogs/$SYSTEM_NAMESPACE-$SYSTEM_POD 2>&1
+        ${RKE2_DIR}/bin/kubectl --kubeconfig=$KUBECONFIG -n $SYSTEM_NAMESPACE logs -p --all-containers $SYSTEM_POD > $TMPDIR/${DISTRO}/podlogs/$SYSTEM_NAMESPACE-$SYSTEM_POD-previous 2>&1
       done
     done
   elif [ -f ${RKE2_DIR}/agent/kubelet.kubeconfig ]; then
     for SYSTEM_NAMESPACE in "${SYSTEM_NAMESPACES[@]}"; do
       if ls -d /var/log/pods/$SYSTEM_NAMESPACE* > /dev/null 2>&1; then
-        cp -r -p /var/log/pods/$SYSTEM_NAMESPACE* $TMPDIR/rke2/podlogs/
+        cp -r -p /var/log/pods/$SYSTEM_NAMESPACE* $TMPDIR/${DISTRO}/podlogs/
       fi
     done
+  fi
+
+  if [ -d ${RKE2_DIR}/agent/pod-manifests ]; then
+    techo "Collecting rke2 static pod manifests"
+    mkdir -p $TMPDIR/${DISTRO}/pod-manifests
+    cp -p ${RKE2_DIR}/agent/pod-manifests/* $TMPDIR/${DISTRO}/pod-manifests
   fi
 
   techo "Collecting rke2 agent/server logs"
   for RKE2_LOG_DIR in agent server
     do
       if [ -d ${RKE2_DIR}/${RKE2_LOG_DIR}/logs/ ]; then
-        cp -rp ${RKE2_DIR}/${RKE2_LOG_DIR}/logs/ $TMPDIR/rke2/${RKE2_LOG_DIR}-logs
+        cp -rp ${RKE2_DIR}/${RKE2_LOG_DIR}/logs/ $TMPDIR/${DISTRO}/${RKE2_LOG_DIR}-logs
       fi
   done
+
+}
+
+kubeadm-k8s() {
+  
+  KUBEADM_DIR="/etc/kubernetes/"
+  KUBEADM_STATIC_DIR="/etc/kubernetes/manifests/"
+  if ! $(command -v kubeadm >/dev/null 2>&1); then
+    echo "error: kubeadm command not found"
+    exit 1
+  fi
+
+  if ! $(command -v kubectl >/dev/null 2>&1); then
+    echo "error: kubectl command not found"
+    exit 1
+  fi
+
+  KUBECONFIG=${KUBECONFIG:"$USER/.kube/config"}
+  techo "Collecting k8s kubeadm cluster logs"
+  mkdir -p $TMPDIR/kubeadm/kubectl
+  kubectl --kubeconfig=$KUBECONFIG get nodes -o wide > $TMPDIR/kubeadm/kubectl/nodes 2>&1
+  kubectl --kubeconfig=$KUBECONFIG describe nodes > $TMPDIR/kubeadm/kubectl/nodesdescribe 2>&1
+  kubectl --kubeconfig=$KUBECONFIG version > $TMPDIR/kubeadm/kubectl/version 2>&1
+  kubectl --kubeconfig=$KUBECONFIG get pods -o wide --all-namespaces > $TMPDIR/kubeadm/kubectl/pods 2>&1
+  kubectl --kubeconfig=$KUBECONFIG get svc -o wide --all-namespaces > $TMPDIR/kubeadm/kubectl/services 2>&1
+  kubectl --kubeconfig=$KUBECONFIG cluster-info dump > $TMPDIR/kubeadm/kubectl/cluster-info_dump 2>&1
+
+  kubectl --kubeconfig=$KUBECONFIG api-resources > $TMPDIR/kubeadm/kubectl/api-resources 2>&1
+  KUBEADM_OBJECTS=(clusterroles clusterrolebindings crds mutatingwebhookconfigurations namespaces nodes pv validatingwebhookconfigurations)
+  KUBEADM_OBJECTS_NAMESPACED=(apiservices configmaps cronjobs deployments daemonsets endpoints events helmcharts hpa ingress jobs leases pods pvc replicasets roles rolebindings statefulsets)
+  for OBJECT in "${KUBEADM_OBJECTS[@]}"; do
+    kubectl --kubeconfig=$KUBECONFIG get ${OBJECT} -o wide > $TMPDIR/kubeadm/kubectl/${OBJECT} 2>&1
+  done
+  for OBJECT in "${KUBEADM_OBJECTS_NAMESPACED[@]}"; do
+    kubectl --kubeconfig=$KUBECONFIG get ${OBJECT} --all-namespaces -o wide > $TMPDIR/kubeadm/kubectl/${OBJECT} 2>&1
+  done
+
+  mkdir -p $TMPDIR/kubeadm/podlogs
+  techo "Collecting k8s kubeadm system pod logs"
+  for SYSTEM_NAMESPACE in "${SYSTEM_NAMESPACES[@]}"; do
+    for SYSTEM_POD in $(kubectl --kubeconfig=$KUBECONFIG -n $SYSTEM_NAMESPACE get pods --no-headers -o custom-columns=NAME:.metadata.name); do
+      kubectl --kubeconfig=$KUBECONFIG -n $SYSTEM_NAMESPACE logs --all-containers $SYSTEM_POD > $TMPDIR/kubeadm/podlogs/$SYSTEM_NAMESPACE-$SYSTEM_POD 2>&1
+      kubectl --kubeconfig=$KUBECONFIG -n $SYSTEM_NAMESPACE logs -p --all-containers $SYSTEM_POD > $TMPDIR/kubeadm/podlogs/$SYSTEM_NAMESPACE-$SYSTEM_POD-previous 2>&1
+    done
+  done
+  for SYSTEM_NAMESPACE in "${SYSTEM_NAMESPACES[@]}"; do
+    if ls -d /var/log/pods/$SYSTEM_NAMESPACE* > /dev/null 2>&1; then
+      cp -r -p /var/log/pods/$SYSTEM_NAMESPACE* $TMPDIR/kubeadm/podlogs/
+    fi
+  done
+
+  techo "Collecting k8s kubeadm metrics"
+  kubectl --kubeconfig=$KUBECONFIG top node > $TMPDIR/kubeadm/metrics_pod 2>&1
+  kubectl --kubeconfig=$KUBECONFIG top pod > $TMPDIR/kubeadm/metrics_nodes 2>&1
+  kubectl --kubeconfig=$KUBECONFIG top pod --containers=true > $TMPDIR/kubeadm/metrics_containers 2>&1
+
+  techo "Collecting k8s kubeadm static pods info and containers logs"
+  if [ -d /var/log/containers/ ]; then
+     cp -rp /var/log/containers $TMPDIR/kubeadm/containers-varlogs
+  fi
+  if [ -d $KUBEADM_STATIC_DIR ]; then
+     ls -lah $KUBEADM_STATIC_DIR > $TMPDIR/kubeadm/staticpodlist 2>&1
+  fi
 
 }
 
@@ -537,7 +681,7 @@ var-log() {
       if [ -d /var/log/${STAT_PACKAGE} ]
         then
           mkdir -p $TMPDIR/systemlogs/${STAT_PACKAGE}-data
-          find /var/log/${STAT_PACKAGE} -mtime -14 -exec cp -p {} $TMPDIR/systemlogs/${STAT_PACKAGE}-data \;
+          find /var/log/${STAT_PACKAGE} -mtime -7 -type f -exec cp -p {} $TMPDIR/systemlogs/${STAT_PACKAGE}-data \;
       fi
   done
 
@@ -557,39 +701,38 @@ journald-log() {
 
 rke-certs() {
 
-  # K8s directory state
   techo "Collecting k8s directory state"
-  mkdir -p $TMPDIR/k8s/directories
+  mkdir -p $TMPDIR/${DISTRO}/directories
   if [ -d /opt/rke/etc/kubernetes/ssl ]; then
-    find /opt/rke/etc/kubernetes/ssl -type f -exec ls -la {} \; > $TMPDIR/k8s/directories/findoptrkeetckubernetesssl 2>&1
+    find /opt/rke/etc/kubernetes/ssl -type f -exec ls -la {} \; > $TMPDIR/${DISTRO}/directories/findoptrkeetckubernetesssl 2>&1
   elif [ -d /etc/kubernetes/ssl ]; then
-    find /etc/kubernetes/ssl -type f -exec ls -la {} \; > $TMPDIR/k8s/directories/findetckubernetesssl 2>&1
+    find /etc/kubernetes/ssl -type f -exec ls -la {} \; > $TMPDIR/${DISTRO}/directories/findetckubernetesssl 2>&1
   fi
 
   techo "Collecting k8s certificates"
-  mkdir -p $TMPDIR/k8s/certs
+  mkdir -p $TMPDIR/${DISTRO}/certs
   if [ -d /opt/rke/etc/kubernetes/ssl ]; then
     CERTS=$(find /opt/rke/etc/kubernetes/ssl -type f -name *.pem | grep -v "\-key\.pem$")
     for CERT in $CERTS; do
-      openssl x509 -in $CERT -text -noout > $TMPDIR/k8s/certs/$(basename $CERT) 2>&1
+      openssl x509 -in $CERT -text -noout > $TMPDIR/${DISTRO}/certs/$(basename $CERT) 2>&1
     done
     if [ -d /opt/rke/etc/kubernetes/.tmp ]; then
-      mkdir -p $TMPDIR/k8s/tmpcerts
+      mkdir -p $TMPDIR/${DISTRO}/tmpcerts
       TMPCERTS=$(find /opt/rke/etc/kubernetes/.tmp -type f -name *.pem | grep -v "\-key\.pem$")
       for TMPCERT in $TMPCERTS; do
-        openssl x509 -in $TMPCERT -text -noout > $TMPDIR/k8s/tmpcerts/$(basename $TMPCERT) 2>&1
+        openssl x509 -in $TMPCERT -text -noout > $TMPDIR/${DISTRO}/tmpcerts/$(basename $TMPCERT) 2>&1
       done
     fi
   elif [ -d /etc/kubernetes/ssl ]; then
     CERTS=$(find /etc/kubernetes/ssl -type f -name *.pem | grep -v "\-key\.pem$")
     for CERT in $CERTS; do
-      openssl x509 -in $CERT -text -noout > $TMPDIR/k8s/certs/$(basename $CERT) 2>&1
+      openssl x509 -in $CERT -text -noout > $TMPDIR/${DISTRO}/certs/$(basename $CERT) 2>&1
     done
     if [ -d /etc/kubernetes/.tmp ]; then
-      mkdir -p $TMPDIR/k8s/tmpcerts
+      mkdir -p $TMPDIR/${DISTRO}/tmpcerts
       TMPCERTS=$(find /etc/kubernetes/.tmp -type f -name *.pem | grep -v "\-key\.pem$")
       for TMPCERT in $TMPCERTS; do
-        openssl x509 -in $TMPCERT -text -noout > $TMPDIR/k8s/tmpcerts/$(basename $TMPCERT) 2>&1
+        openssl x509 -in $TMPCERT -text -noout > $TMPDIR/${DISTRO}/tmpcerts/$(basename $TMPCERT) 2>&1
       done
     fi
   fi
@@ -601,23 +744,54 @@ k3s-certs() {
   if [ -d /var/lib/rancher/k3s ]
     then
       techo "Collecting k3s directory state"
-      mkdir -p $TMPDIR/k3s/directories
-      ls -lah /var/lib/rancher/k3s/agent > $TMPDIR/k3s/directories/k3sagent 2>&1
-      ls -lah /var/lib/rancher/k3s/server/manifests > $TMPDIR/k3s/directories/k3sservermanifests 2>&1
-      ls -lah /var/lib/rancher/k3s/server/tls > $TMPDIR/k3s/directories/k3sservertls 2>&1
+      mkdir -p $TMPDIR/${DISTRO}/directories
+      ls -lah /var/lib/rancher/${DISTRO}/agent > $TMPDIR/${DISTRO}/directories/k3sagent 2>&1
+      ls -lah /var/lib/rancher/${DISTRO}/server/manifests > $TMPDIR/${DISTRO}/directories/k3sservermanifests 2>&1
+      ls -lah /var/lib/rancher/${DISTRO}/server/tls > $TMPDIR/${DISTRO}/directories/k3sservertls 2>&1
       techo "Collecting k3s certificates"
-      mkdir -p $TMPDIR/k3s/certs/{agent,server}
-      AGENT_CERTS=$(find /var/lib/rancher/k3s/agent -maxdepth 1 -type f -name "*.crt" | grep -v "\-ca.crt$")
+      mkdir -p $TMPDIR/${DISTRO}/certs/{agent,server}
+      AGENT_CERTS=$(find /var/lib/rancher/${DISTRO}/agent -maxdepth 1 -type f -name "*.crt" | grep -v "\-ca.crt$")
       for CERT in $AGENT_CERTS
         do
-          openssl x509 -in $CERT -text -noout > $TMPDIR/k3s/certs/agent/$(basename $CERT) 2>&1
+          openssl x509 -in $CERT -text -noout > $TMPDIR/${DISTRO}/certs/agent/$(basename $CERT) 2>&1
       done
-      if [ -d /var/lib/rancher/k3s/server/tls ]; then
+      if [ -d /var/lib/rancher/${DISTRO}/server/tls ]; then
         techo "Collecting k3s server certificates"
-        SERVER_CERTS=$(find /var/lib/rancher/k3s/server/tls -maxdepth 1 -type f -name "*.crt" | grep -v "\-ca.crt$")
+        SERVER_CERTS=$(find /var/lib/rancher/${DISTRO}/server/tls -maxdepth 1 -type f -name "*.crt" | grep -v "\-ca.crt$")
         for CERT in $SERVER_CERTS
           do
-            openssl x509 -in $CERT -text -noout > $TMPDIR/k3s/certs/server/$(basename $CERT) 2>&1
+            openssl x509 -in $CERT -text -noout > $TMPDIR/${DISTRO}/certs/server/$(basename $CERT) 2>&1
+        done
+      fi
+  fi
+
+}
+
+kubeadm-certs() {
+
+  if ! $(command -v openssl >/dev/null 2>&1); then
+    echo "error: openssl command not found"
+    exit 1
+  fi
+
+  if [ -d /etc/kubernetes/pki/ ]
+    then
+      techo "Collecting k8s kubeadm directory state"
+      mkdir -p $TMPDIR/kubeadm/directories
+      ls -lah /etc/kubernetes/ > $TMPDIR/kubeadm/directories/kubeadm 2>&1
+      techo "Collecting k8s kubeadm certificates"
+      mkdir -p $TMPDIR/kubeadm/pki/{server,kubelet}
+      SERVER_CERTS=$(find /etc/kubernetes/pki/ -maxdepth 2 -type f -name "*.crt" | grep -v "\-ca.crt$")
+      for CERT in $SERVER_CERTS
+        do
+          openssl x509 -in $CERT -text -noout > $TMPDIR/kubeadm/pki/server/$(basename $CERT) 2>&1
+      done
+      if [ -d /var/lib/kubelet/pki/ ]; then
+        techo "Collecting kubelet certificates"
+        AGENT_CERTS=$(find /var/lib/kubelet/pki/ -maxdepth 2 -type f -name "*.crt" | grep -v "\-ca.crt$")
+        for CERT in $AGENT_CERTS
+          do
+            openssl x509 -in $CERT -text -noout > $TMPDIR/kubeadm/pki/kubelet/$(basename $CERT) 2>&1
         done
       fi
   fi
@@ -629,23 +803,23 @@ rke2-certs() {
   if [ -d ${RKE2_DIR} ]
     then
       techo "Collecting rke2 directory state"
-      mkdir -p $TMPDIR/rke2/directories
-      ls -lah ${RKE2_DIR}/agent > $TMPDIR/rke2/directories/rke2agent 2>&1
-      ls -lah ${RKE2_DIR}/server/manifests > $TMPDIR/rke2/directories/rke2servermanifests 2>&1
-      ls -lah ${RKE2_DIR}/server/tls > $TMPDIR/rke2/directories/rke2servertls 2>&1
+      mkdir -p $TMPDIR/${DISTRO}/directories
+      ls -lah ${RKE2_DIR}/agent > $TMPDIR/${DISTRO}/directories/rke2agent 2>&1
+      ls -lah ${RKE2_DIR}/server/manifests > $TMPDIR/${DISTRO}/directories/rke2servermanifests 2>&1
+      ls -lah ${RKE2_DIR}/server/tls > $TMPDIR/${DISTRO}/directories/rke2servertls 2>&1
       techo "Collecting rke2 certificates"
-      mkdir -p $TMPDIR/rke2/certs/{agent,server}
+      mkdir -p $TMPDIR/${DISTRO}/certs/{agent,server}
       AGENT_CERTS=$(find ${RKE2_DIR}/agent -maxdepth 1 -type f -name "*.crt" | grep -v "\-ca.crt$")
       for CERT in $AGENT_CERTS
         do
-          openssl x509 -in $CERT -text -noout > $TMPDIR/rke2/certs/agent/$(basename $CERT) 2>&1
+          openssl x509 -in $CERT -text -noout > $TMPDIR/${DISTRO}/certs/agent/$(basename $CERT) 2>&1
       done
       if [ -d ${RKE2_DIR}/server/tls ]; then
         techo "Collecting rke2 server certificates"
         SERVER_CERTS=$(find ${RKE2_DIR}/server/tls -maxdepth 1 -type f -name "*.crt" | grep -v "\-ca.crt$")
         for CERT in $SERVER_CERTS
           do
-            openssl x509 -in $CERT -text -noout > $TMPDIR/rke2/certs/server/$(basename $CERT) 2>&1
+            openssl x509 -in $CERT -text -noout > $TMPDIR/${DISTRO}/certs/server/$(basename $CERT) 2>&1
         done
       fi
   fi
@@ -668,19 +842,20 @@ rke-etcd() {
 
   if docker ps --format='{{.Names}}' | grep -q ^etcd$ >/dev/null 2>&1; then
     techo "Collecting etcdctl output"
-    PARAM=""
-    # Check for older versions with incorrectly set ETCDCTL_ENDPOINT vs the correct ETCDCTL_ENDPOINTS
-    # If ETCDCTL_ENDPOINTS is empty, its an older version
-    if [ -z $(docker exec etcd printenv ETCDCTL_ENDPOINTS) ]; then
-      ENDPOINT=$(docker exec etcd printenv ETCDCTL_ENDPOINT)
-      if echo $ENDPOINT | grep -vq 0.0.0.0; then
-        PARAM="--endpoints=$(docker exec etcd printenv ETCDCTL_ENDPOINT)"
-      fi
-    fi
-    docker exec etcd sh -c "etcdctl $PARAM member list"  > $TMPDIR/etcd/memberlist 2>&1
-    docker exec -e ETCDCTL_ENDPOINTS=$(docker exec etcd /bin/sh -c "etcdctl $PARAM member list | cut -d, -f5 | sed -e 's/ //g' | paste -sd ','") etcd etcdctl endpoint status --write-out table > $TMPDIR/etcd/endpointstatus 2>&1
-    docker exec -e ETCDCTL_ENDPOINTS=$(docker exec etcd /bin/sh -c "etcdctl $PARAM member list | cut -d, -f5 | sed -e 's/ //g' | paste -sd ','") etcd etcdctl endpoint health > $TMPDIR/etcd/endpointhealth 2>&1
-    docker exec etcd sh -c "etcdctl $PARAM alarm list" > $TMPDIR/etcd/alarmlist 2>&1
+    docker exec etcd etcdctl member list > $TMPDIR/etcd/memberlist 2>&1
+    ETCDCTL_ENDPOINTS=$(cut -d, -f5 $TMPDIR/etcd/memberlist | sed -e 's/ //g' | paste -sd ',')
+    docker exec -e ETCDCTL_ENDPOINTS=$ETCDCTL_ENDPOINTS etcd etcdctl endpoint status --write-out table > $TMPDIR/etcd/endpointstatus 2>&1
+    docker exec -e ETCDCTL_ENDPOINTS=$ETCDCTL_ENDPOINTS etcd etcdctl endpoint health > $TMPDIR/etcd/endpointhealth 2>&1
+    docker exec -e ETCDCTL_ENDPOINTS=$ETCDCTL_ENDPOINTS etcd etcdctl alarm list > $TMPDIR/etcd/alarmlist 2>&1
+
+    techo "Collecting rke etcd metrics"
+    KEY=$(find /etc/kubernetes/ssl/ -name "kube-etcd-*-key.pem" | head -n1)
+    CERT=$(echo $KEY | sed 's/-key//g')
+    ETCD_ENDPOINTS=$(grep -oE '\b([0-9]{1,3}\.){3}[0-9]{1,3}:2379\b' $TMPDIR/etcd/memberlist | uniq)
+    for ENDPOINT in ${ETCD_ENDPOINTS}
+      do
+        curl -sL --connect-timeout 5 --cacert /etc/kubernetes/ssl/kube-ca.pem --key $KEY --cert $CERT https://$ENDPOINT/metrics > $TMPDIR/etcd/etcd-metrics-$ENDPOINT.txt
+    done
   fi
 
 }
@@ -691,10 +866,21 @@ rke2-etcd() {
   if [ ! -z ${RKE2_ETCD} ]; then
     techo "Collecting rke2 etcd info"
     mkdir -p $TMPDIR/etcd
-    ETCDCTL_ENDPOINTS=$(${RKE2_DIR}/bin/crictl exec ${RKE2_ETCD} /bin/sh -c "etcdctl --cert ${RKE2_DIR}/server/tls/etcd/server-client.crt --key ${RKE2_DIR}/server/tls/etcd/server-client.key --cacert ${RKE2_DIR}/server/tls/etcd/server-ca.crt member list | cut -d, -f5 | sed -e 's/ //g' | paste -sd ','")
-    ${RKE2_DIR}/bin/crictl exec ${RKE2_ETCD} /bin/sh -c "ETCDCTL_ENDPOINTS=$ETCDCTL_ENDPOINTS etcdctl --cert ${RKE2_DIR}/server/tls/etcd/server-client.crt --key ${RKE2_DIR}/server/tls/etcd/server-client.key --cacert ${RKE2_DIR}/server/tls/etcd/server-ca.crt --write-out table endpoint status" > $TMPDIR/etcd/endpointstatus 2>&1
-    ${RKE2_DIR}/bin/crictl exec ${RKE2_ETCD} /bin/sh -c "ETCDCTL_ENDPOINTS=$ETCDCTL_ENDPOINTS etcdctl --cert ${RKE2_DIR}/server/tls/etcd/server-client.crt --key ${RKE2_DIR}/server/tls/etcd/server-client.key --cacert ${RKE2_DIR}/server/tls/etcd/server-ca.crt endpoint health" > $TMPDIR/etcd/endpointhealth 2>&1
-    ${RKE2_DIR}/bin/crictl exec ${RKE2_ETCD} /bin/sh -c "ETCDCTL_ENDPOINTS=$ETCDCTL_ENDPOINTS etcdctl --cert ${RKE2_DIR}/server/tls/etcd/server-client.crt --key ${RKE2_DIR}/server/tls/etcd/server-client.key --cacert ${RKE2_DIR}/server/tls/etcd/server-ca.crt alarm list" > $TMPDIR/etcd/alarmlist 2>&1
+    ETCD_CERT=${RKE2_DIR}/server/tls/etcd/server-client.crt
+    ETCD_KEY=${RKE2_DIR}/server/tls/etcd/server-client.key
+    ETCD_CACERT=${RKE2_DIR}/server/tls/etcd/server-ca.crt
+    ${RKE2_DIR}/bin/crictl exec ${RKE2_ETCD} /bin/sh -c "etcdctl --cert ${ETCD_CERT} --key ${ETCD_KEY} --cacert ${ETCD_CACERT} member list" > $TMPDIR/etcd/memberlist 2>&1
+    ETCDCTL_ENDPOINTS=$(cut -d, -f5 $TMPDIR/etcd/memberlist | sed -e 's/ //g' | paste -sd ',')
+    ${RKE2_DIR}/bin/crictl exec ${RKE2_ETCD} /bin/sh -c "ETCDCTL_ENDPOINTS=$ETCDCTL_ENDPOINTS etcdctl --cert ${ETCD_CERT} --key ${ETCD_KEY} --cacert ${ETCD_CACERT} --write-out table endpoint status" > $TMPDIR/etcd/endpointstatus 2>&1
+    ${RKE2_DIR}/bin/crictl exec ${RKE2_ETCD} /bin/sh -c "ETCDCTL_ENDPOINTS=$ETCDCTL_ENDPOINTS etcdctl --cert ${ETCD_CERT} --key ${ETCD_KEY} --cacert ${ETCD_CACERT} endpoint health" > $TMPDIR/etcd/endpointhealth 2>&1
+    ${RKE2_DIR}/bin/crictl exec ${RKE2_ETCD} /bin/sh -c "ETCDCTL_ENDPOINTS=$ETCDCTL_ENDPOINTS etcdctl --cert ${ETCD_CERT} --key ${ETCD_KEY} --cacert ${ETCD_CACERT} alarm list" > $TMPDIR/etcd/alarmlist 2>&1
+
+    techo "Collecting rke2 etcd metrics"
+    ETCD_ENDPOINTS=$(grep -oE '\b([0-9]{1,3}\.){3}[0-9]{1,3}:2379\b' $TMPDIR/etcd/memberlist | uniq)
+    for ENDPOINT in ${ETCD_ENDPOINTS}
+      do
+        curl -sL --connect-timeout 5 --cacert ${ETCD_CACERT} --key ${ETCD_KEY} --cert ${ETCD_CERT} https://$ENDPOINT/metrics > $TMPDIR/etcd/etcd-metrics-$ENDPOINT.txt
+    done
   fi
 
   if [ -d "${RKE2_DIR}/server/db/etcd" ]; then
@@ -702,6 +888,53 @@ rke2-etcd() {
   fi
   if [ -d "${RKE2_DIR}/server/db/snapshots" ]; then
     find "${RKE2_DIR}/server/db/snapshots" -type f -exec ls -la {} \; > $TMPDIR/etcd/findserverdbsnapshots 2>&1
+  fi
+
+}
+
+k3s-etcd() {
+
+  (echo > /dev/tcp/127.0.0.1/2379) &> /dev/null
+  if [ $? -eq 0  ]; then
+    techo "Collecting k3s etcd info"
+    mkdir -p $TMPDIR/etcd
+    K3S_DIR=/var/lib/rancher/k3s
+    ETCD_CERT=${K3S_DIR}/server/tls/etcd/server-client.crt
+    ETCD_KEY=${K3S_DIR}/server/tls/etcd/server-client.key
+    ETCD_CACERT=${K3S_DIR}/server/tls/etcd/server-ca.crt
+    curl -sL --cacert ${ETCD_CACERT} --key ${ETCD_KEY} --cert ${ETCD_CERT} https://localhost:2379/v3/cluster/member/list -X POST > $TMPDIR/etcd/memberlist.json 2>&1
+
+    techo "Collecting k3s etcd metrics"
+    ETCD_ENDPOINTS=$(grep -oE '\b([0-9]{1,3}\.){3}[0-9]{1,3}:2379\b' $TMPDIR/etcd/memberlist.json | uniq)
+    for ENDPOINT in ${ETCD_ENDPOINTS}
+      do
+        curl -sL --connect-timeout 5 --cacert ${ETCD_CACERT} --key ${ETCD_KEY} --cert ${ETCD_CERT} https://$ENDPOINT/metrics > $TMPDIR/etcd/etcd-metrics-$ENDPOINT.txt
+    done
+  fi
+
+}
+
+kubeadm-etcd() {
+
+  KUBEADM_ETCD_DIR="/var/lib/etcd/"
+  KUBEADM_ETCD_CERTS="/etc/kubernetes/pki/etcd/"
+  
+  if ! $(command -v etcdctl >/dev/null 2>&1); then
+    echo "error: etcdctl command not found"
+    exit 1
+  fi
+
+  if [ -d $KUBEADM_ETCD_DIR ]; then
+    techo "Collecting kubeadm etcd info"
+    mkdir -p $TMPDIR/etcd
+    ETCDCTL_ENDPOINTS=$(etcdctl --cert ${KUBEADM_ETCD_CERTS}/server.crt --key ${KUBEADM_ETCD_CERTS}/server.key --cacert ${KUBEADM_ETCD_CERTS}/ca.crt --write-out="simple" endpoint status | cut -d "," -f 1)
+    etcdctl --endpoints=$ETCDCTL_ENDPOINTS --cert ${KUBEADM_ETCD_CERTS}/server.crt --key ${KUBEADM_ETCD_CERTS}/server.key --cacert ${KUBEADM_ETCD_CERTS}/ca.crt --write-out table endpoint status > $TMPDIR/etcd/endpointstatus 2>&1
+    etcdctl --endpoints=$ETCDCTL_ENDPOINTS --cert ${KUBEADM_ETCD_CERTS}/server.crt --key ${KUBEADM_ETCD_CERTS}/server.key --cacert ${KUBEADM_ETCD_CERTS}/ca.crt endpoint health > $TMPDIR/etcd/endpointhealth 2>&1
+    etcdctl --endpoints=$ETCDCTL_ENDPOINTS --cert ${KUBEADM_ETCD_CERTS}/server.crt --key ${KUBEADM_ETCD_CERTS}/server.key --cacert ${KUBEADM_ETCD_CERTS}/ca.crt alarm list > $TMPDIR/etcd/alarmlist 2>&1
+  fi
+
+  if [ -d ${KUBEADM_ETCD_DIR} ]; then
+    find ${KUBEADM_ETCD_DIR} -type f -exec ls -la {} \; > $TMPDIR/etcd/findserverdbetcd 2>&1
   fi
 
 }
@@ -719,20 +952,21 @@ timeout_cmd() {
 
 archive() {
 
-  FILEDIR=$(dirname $TMPDIR)
-  FILENAME="$(hostname)-$(date +'%Y-%m-%d_%H_%M_%S').tar"
-  tar --create --file ${FILEDIR}/${FILENAME} --directory ${TMPDIR}/ .
-  ## gzip separately for Rancher OS
-  gzip ${FILEDIR}/${FILENAME}
-
-  techo "Created ${FILEDIR}/${FILENAME}.gz"
+  DIR_NAME=$(dirname ${TMPDIR_BASE})
+  tar --create --gzip --file ${DIR_NAME}/${LOGNAME}.tar.gz --directory ${TMPDIR_BASE}/ .
+  if [ $? -eq -0 ]
+    then
+      techo "Created ${DIR_NAME}/${LOGNAME}.tar.gz"
+    else
+      techo "Creating the tar archive did not complete successfully"
+  fi
 
 }
 
 cleanup() {
 
-  techo "Removing ${TMPDIR}"
-  rm -r -f "${TMPDIR}" >/dev/null 2>&1
+  techo "Removing ${TMPDIR_BASE}"
+  rm -r -f "${TMPDIR_BASE}" >/dev/null 2>&1
 
 }
 
@@ -749,7 +983,7 @@ help() {
   -e    End day of journald and docker log collection. Specify the number of days before the current time (ex: -e 5)
   -S    Start date of journald and docker log collection. (ex: -S 2022-12-05)
   -E    End date of journald and docker log collection. (ex: -E 2022-12-07)
-  -r    Override k8s distribution if not automatically detected (rke|k3s|rke2)
+  -r    Override k8s distribution if not automatically detected (rke|k3s|rke2|kubeadm)
   -p    When supplied runs with the default nice/ionice priorities, otherwise use the lowest priorities
   -f    Force log collection if the minimum space isn't available"
 
@@ -768,7 +1002,7 @@ techo() {
 }
 
 # Check if we're running as root.
-if [[ $EUID -ne 0 ]]
+if [[ $EUID -ne 0 ]] && [[ "${DEV}" == "" ]]
   then
     techo "This script must be run as root"
     exit 1
@@ -846,12 +1080,17 @@ fi
 sherlock
 system-all
 networking
+provisioning-crds
 if [[ "${OSRELEASE}" = "rhel" || "${OSRELEASE}" = "centos" ]]
   then
     system-rhel
 elif [ "${OSRELEASE}" = "ubuntu" ]
   then
     system-ubuntu
+fi
+if [ "${OSRELEASE}" = "sles" ]
+  then
+    system-sles
 fi
 if [ "${DISTRO}" = "rke" ]
   then
@@ -864,12 +1103,18 @@ elif [ "${DISTRO}" = "k3s" ]
     k3s-logs
     k3s-k8s
     k3s-certs
+    k3s-etcd
 elif [ "${DISTRO}" = "rke2" ]
   then
     rke2-logs
     rke2-k8s
     rke2-certs
     rke2-etcd
+elif [ "${DISTRO}" = "kubeadm" ]
+  then
+    kubeadm-k8s
+    kubeadm-certs
+    kubeadm-etcd
 fi
 var-log
 if [ "${INIT}" = "systemd" ]
