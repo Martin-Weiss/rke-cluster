@@ -226,6 +226,12 @@ imageGCHighThresholdPercent: 80
 imageGCLowThresholdPercent: 60
 EOF'
 
+        # different in 1.25/1.26/1.27
+        if echo $RKE2_VERSION |grep "v1.25" || echo $RKE2_VERSION |grep "v1.26" || echo $RKE2_VERSION |grep "v1.27" ; then
+                # change CIS profile to 1.23
+                sudo sed -i 's/profile:.*/profile: cis-1.23/g' /etc/rancher/rke2/config.yaml
+        fi
+
 }
 
 function _PREPARE_RKE2_CLOUD_CONFIG {
