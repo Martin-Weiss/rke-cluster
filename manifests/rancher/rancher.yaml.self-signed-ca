@@ -13,7 +13,7 @@ metadata:
   namespace: kube-system
 spec:
   jobImage: %%REGISTRY%%/%%STAGE%%/docker.io/rancher/klipper-helm:v0.4.3
-  chart: https://%%CLUSTER%%.%%DOMAIN%%:9345/static/charts/rancher-v2.7.9.tgz
+  chart: https://%%CLUSTER%%.%%DOMAIN%%:9345/static/charts/rancher-v2.8.4.tgz
   targetNamespace: cattle-system
   valuesContent: |-
     busyboxImage: %%REGISTRY%%/%%STAGE%%/docker.io/busybox

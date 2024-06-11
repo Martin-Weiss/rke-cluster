@@ -3,7 +3,10 @@
 #RKE2_VERSIONS="v1.21.14+rke2r1 v1.22.12+rke2r1 v1.23.9+rke2r1 v1.24.3+rke2r1"
 #RKE2_VERSIONS="v1.22.13+rke2r1 v1.23.10+rke2r1 v1.24.4+rke2r1"
 #RKE2_VERSIONS="v1.24.10+rke2r1 v1.25.6+rke2r1 v1.26.1+rke2r1"
-RKE2_VERSIONS="v1.24.17+rke2r1 v1.25.15+rke2r2 v1.26.10+rke2r2 v1.27.7+rke2r2 v1.28.3+rke2r2"
+#RKE2_VERSIONS="v1.24.17+rke2r1 v1.25.15+rke2r2 v1.26.10+rke2r2 v1.27.7+rke2r2 v1.28.3+rke2r2"
+#RKE2_VERSIONS="v1.27.10+rke2r1"
+#RKE2_VERSIONS="v1.27.12+rke2r1"
+RKE2_VERSIONS="v1.28.9+rke2r1 v1.28.10+rke2r1"
 
 for RKE2_VERSION in $RKE2_VERSIONS; do
 	mkdir -p $RKE2_VERSION

@@ -11,6 +11,12 @@ KUBE_CONTAINERS=(etcd etcd-rolling-snapshots kube-apiserver kube-controller-mana
 # Included journald logs
 JOURNALD_LOGS=(docker k3s rke2-agent rke2-server containerd cloud-init systemd-network kubelet kubeproxy rancher-system-agent)
 
+# Included /var/log files
+VAR_LOG_FILES=(syslog messages kern docker cloud-init audit/ dmesg)
+
+# Days of /var/log files to include
+VAR_LOG_DAYS=7
+
 # Minimum space needed to run the script (MB)
 SPACE=1536
 
@@ -31,6 +37,7 @@ setup() {
   LOGNAME="$(hostname)-$(date +'%Y-%m-%d_%H_%M_%S')"
   mkdir -p "${TMPDIR_BASE}/${LOGNAME}"
   TMPDIR="${TMPDIR_BASE}/${LOGNAME}"
+  export PATH=$PATH:/usr/local/bin:/opt/rke2/bin:/opt/bin
 
 }
 
@@ -86,7 +93,7 @@ sherlock() {
               DISTRO=k3s
               echo "k3s"
             else
-              FOUND+="k3s"
+              FOUND+="k3s "
           fi
       fi
       if $(command -v rke2 >/dev/null 2>&1)
@@ -97,8 +104,10 @@ sherlock() {
               DISTRO=rke2
               echo "rke2"
             else
-              FOUND+="rke2"
+              FOUND+="rke2 "
           fi
+          echo "$(timestamp): Using RKE2 binaries in... ${RKE2_BIN}"
+          echo "$(timestamp): Using data-dir... ${RKE2_DIR}"
       fi
       if $(command -v docker >/dev/null 2>&1)
         then
@@ -112,7 +121,7 @@ sherlock() {
                   techo "Found rke, but another distribution ("${DISTRO}") was also found, using "${DISTRO}"..."
               fi
             else
-              FOUND="rke"
+              FOUND+="rke "
           fi
       fi
       if [ -z ${DISTRO} ]
@@ -135,13 +144,16 @@ sherlock() {
       echo "other"
   fi
 
-  echo "$(timestamp): Using discovered data-dir... ${RKE2_DIR}"
-
 }
 
 sherlock-data-dir() {
 
-  RKE2_BIN=$(dirname $(which rke2))
+  which rke2 > /dev/null 2>&1
+  if [ $? -eq 0 ]
+    then
+      RKE2_BIN=$(dirname $(which rke2))
+  fi
+
   if [ -f /etc/rancher/${DISTRO}/config.yaml ]
     then
       CUSTOM_DIR=$(awk '$1 ~ /data-dir:/ {print $2}' /etc/rancher/${DISTRO}/config.yaml)
@@ -672,16 +684,29 @@ kubeadm-k8s() {
 
 var-log() {
 
+  if [ -n "${START_DAY}" ]
+    then
+      VAR_LOG_DAYS=${START_DAY}
+  fi
+
   techo "Collecting system logs from /var/log"
   mkdir -p $TMPDIR/systemlogs
-  cp -p /var/log/syslog* /var/log/messages* /var/log/kern* /var/log/docker* /var/log/system-docker* /var/log/cloud-init* /var/log/audit/* $TMPDIR/systemlogs 2>/dev/null
+
+  for LOG_FILE in "${VAR_LOG_FILES[@]}"
+    do
+      ls /var/log/${LOG_FILE}* > /dev/null 2>&1
+      if [ $? -eq 0 ]
+        then
+          find /var/log/${LOG_FILE}* -mtime -${VAR_LOG_DAYS} -type f -exec cp -p {} $TMPDIR/systemlogs/ \;
+      fi
+  done
 
   for STAT_PACKAGE in atop sa sysstat
     do
       if [ -d /var/log/${STAT_PACKAGE} ]
         then
           mkdir -p $TMPDIR/systemlogs/${STAT_PACKAGE}-data
-          find /var/log/${STAT_PACKAGE} -mtime -7 -type f -exec cp -p {} $TMPDIR/systemlogs/${STAT_PACKAGE}-data \;
+          find /var/log/${STAT_PACKAGE} -mtime -${VAR_LOG_DAYS} -type f -exec cp -p {} $TMPDIR/systemlogs/${STAT_PACKAGE}-data \;
       fi
   done
 

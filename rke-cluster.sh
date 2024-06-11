@@ -192,8 +192,8 @@ EOF'
 	# copy default rke2-pss.yaml to target
 	sudo cp -a $RKECLUSTERDIR/rke2-pss.yaml /etc/rancher/rke2/rke2-pss.yaml
 	fi
-	# different in 1.25/1.26/1.27
-	if echo $RKE2_VERSION |grep "v1.25" || echo $RKE2_VERSION |grep "v1.26" || echo $RKE2_VERSION |grep "v1.27" ; then
+	# different in 1.25/1.26/1.27/1.28
+	if echo $RKE2_VERSION |grep "v1.25" || echo $RKE2_VERSION |grep "v1.26" || echo $RKE2_VERSION |grep "v1.27" || echo $RKE2_VERSION |grep "v1.28" ; then
 		# change CIS profile to 1.23
 		sudo sed -i 's/profile:.*/profile: cis-1.23/g' /etc/rancher/rke2/config.yaml
 		# remove admission-control-config-file as RKE2 handles this automatically, now
@@ -226,8 +226,8 @@ imageGCHighThresholdPercent: 80
 imageGCLowThresholdPercent: 60
 EOF'
 
-        # different in 1.25/1.26/1.27
-        if echo $RKE2_VERSION |grep "v1.25" || echo $RKE2_VERSION |grep "v1.26" || echo $RKE2_VERSION |grep "v1.27" ; then
+        # different in 1.25/1.26/1.27/1.28
+        if echo $RKE2_VERSION |grep "v1.25" || echo $RKE2_VERSION |grep "v1.26" || echo $RKE2_VERSION |grep "v1.27" || echo $RKE2_VERSION |grep "v1.28" ; then
                 # change CIS profile to 1.23
                 sudo sed -i 's/profile:.*/profile: cis-1.23/g' /etc/rancher/rke2/config.yaml
         fi
@@ -446,8 +446,12 @@ function _FIX_1_20_6 {
 	   [ "$RKE2_VERSION" == "v1.24.17+rke2r1" ] ||\
 	   [ "$RKE2_VERSION" == "v1.25.15+rke2r2" ] ||\
 	   [ "$RKE2_VERSION" == "v1.26.10+rke2r2" ] ||\
-	   [ "$RKE2_VERSION" == "v1.27.17+rke2r2" ] ||\
+	   [ "$RKE2_VERSION" == "v1.27.7+rke2r2" ] ||\
+	   [ "$RKE2_VERSION" == "v1.27.10+rke2r1" ] ||\
+	   [ "$RKE2_VERSION" == "v1.27.12+rke2r1" ] ||\
 	   [ "$RKE2_VERSION" == "v1.28.3+rke2r2" ] ||\
+	   [ "$RKE2_VERSION" == "v1.28.9+rke2r1" ] ||\
+	   [ "$RKE2_VERSION" == "v1.28.10+rke2r1" ] ||\
 	   [ "$RKE2_VERSION" == "v1.21.11+rke2r1" ] ; then
                 # remove system-default registry
                 sudo sed -i "/^system-default-registry:.*/d" /etc/rancher/rke2/config.yaml
@@ -501,8 +505,12 @@ function _FIX_1_20_11 {
 	   echo $RKE2_VERSION |grep "v1.24.17" ||\
 	   echo $RKE2_VERSION |grep "v1.25.15" ||\
 	   echo $RKE2_VERSION |grep "v1.26.10" ||\
-	   echo $RKE2_VERSION |grep "v1.27.17" ||\
+	   echo $RKE2_VERSION |grep "v1.27.7" ||\
+	   echo $RKE2_VERSION |grep "v1.27.10" ||\
+	   echo $RKE2_VERSION |grep "v1.27.12" ||\
 	   echo $RKE2_VERSION |grep "v1.28.3" ||\
+	   echo $RKE2_VERSION |grep "v1.28.9" ||\
+	   echo $RKE2_VERSION |grep "v1.28.10" ||\
 	   echo $RKE2_VERSION |grep "v1.21.11" ; then
                 echo "remove rke2-kube-proxy-config.yaml as the deployment method for kube proxy changed"
 		sudo rm $RKECLUSTERDIR/manifests/rke2-kube-proxy-config.yaml
@@ -558,18 +566,22 @@ function _CILIUM_NOT_CANAL {
 	     echo $RKE2_VERSION |grep "v1.24.17" ||\
   	     echo $RKE2_VERSION |grep "v1.25.15" ||\
 	     echo $RKE2_VERSION |grep "v1.26.10" ||\
-	     echo $RKE2_VERSION |grep "v1.27.17" ||\
+	     echo $RKE2_VERSION |grep "v1.27.7" ||\
+	     echo $RKE2_VERSION |grep "v1.27.10" ||\
+	     echo $RKE2_VERSION |grep "v1.27.12" ||\
 	     echo $RKE2_VERSION |grep "v1.28.3" ||\
+	     echo $RKE2_VERSION |grep "v1.28.9" ||\
+	     echo $RKE2_VERSION |grep "v1.28.10" ||\
 	     echo $RKE2_VERSION |grep "v1.21.11" &&\
    	     [ -f $RKECLUSTERDIR/manifests/rke2-cilium.yaml ]; then
-		echo "Cilium Yaml exists and cluster version is v1.20.7-v1.20.15 or v1.21.2-v1.28.3"
+		echo "Cilium Yaml exists and cluster version is v1.20.7-v1.20.15 or v1.21.2-v1.28.10"
 		sudo sed -i "/^cni:/d" /etc/rancher/rke2/config.yaml
 		sudo bash -c 'echo "cni: cilium" >>/etc/rancher/rke2/config.yaml'
 		sudo rm $RKECLUSTERDIR/manifests/rke2-canal*.yaml /var/lib/rancher/rke2/server/manifests/rke2-canal*.yaml
 		# do not need this file in 1.20.7 or newer, anymore
 		sudo rm $RKECLUSTERDIR/manifests/rke2-cilium.yaml
 	else
-		echo "Cilium Yaml does not exist or cluster version is not v1.20.7-v1.20.15 or v1.21.2-v1.28.3"
+		echo "Cilium Yaml does not exist or cluster version is not v1.20.7-v1.20.15 or v1.21.2-v1.28.10"
 		sudo rm $RKECLUSTERDIR/manifests/rke2-cilium*.yaml*
 	fi
 }
