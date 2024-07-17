@@ -124,6 +124,20 @@ EOF'
 HOME=/root
 GODEBUG=x509ignoreCN=0
 EOF'
+
+	# error "failed to create fsnotify watcher. err=too many open files" in vsphere-csi-controller - need more watches
+	# see also https://github.com/rancher/rke2/issues/2382
+	# 
+	# default was:
+	# fs.inotify.max_queued_events = 16384
+	# fs.inotify.max_user_instances = 128
+	# fs.inotify.max_user_watches = 65536
+	#
+sudo bash -c 'cat << EOF > /etc/sysctl.d/20-inotify.conf
+fs.inotify.max_user_instances=8192
+fs.inotify.max_user_watches=524288
+EOF'
+	sudo /sbin/sysctl -p /etc/sysctl.d/20-inotify.conf
 }
 
 function _PREPARE_RKE2_SERVER_CONFIG {
@@ -141,7 +155,7 @@ cloud-provider-config: /etc/rancher/rke2/vsphere.conf
 private-registry: /etc/rancher/rke2/registries.yaml
 agent-token: %%CLUSTER%%-token-asfebwadg
 token: %%CLUSTER%%-token-asfebwadg
-system-default-registry: %%REGISTRY%%/%%STAGE%%/docker.io
+system-default-registry: registry.rancher.com
 profile: cis-1.6
 tls-san:
   - "%%CLUSTER%%.%%DOMAIN%%"
@@ -210,7 +224,7 @@ cloud-provider-name: vsphere
 cloud-provider-config: /etc/rancher/rke2/vsphere.conf
 private-registry: /etc/rancher/rke2/registries.yaml
 token: %%CLUSTER%%-token-asfebwadg
-system-default-registry: %%REGISTRY%%/%%STAGE%%/docker.io
+system-default-registry: registry.rancher.com
 server: https://%%CLUSTER%%.%%DOMAIN%%:9345
 profile: cis-1.6
 node-label:
@@ -394,7 +408,8 @@ function _FIX_1_20_DEPLOYMENT {
         # have to adopt 1.20.4 / 1.20.5 workaround before starting the cluster
         if [ "$RKE2_VERSION" == "v1.20.4+rke2r1" ] || [ "$RKE2_VERSION" == "v1.20.5+rke2r1" ]; then
 	        # change in system-default-registry does not allow namespace anymore
-        	sudo sed -i "s/^system-default-registry:.*/system-default-registry: $REGISTRY/g" /etc/rancher/rke2/config.yaml
+        	#sudo sed -i "s/^system-default-registry:.*/system-default-registry: $REGISTRY/g" /etc/rancher/rke2/config.yaml
+		# due to prime this is now system-default-registry: registry.rancher.com
 	        # due to missing namespacee support for initial images have to use tarball
 	        sudo mkdir -p /var/lib/rancher/rke2/agent/images
  	        sudo cp -a $RKECLUSTERDIR/$RKE2_VERSION/rke2-images.linux-amd64.tar.zst /var/lib/rancher/rke2/agent/images
@@ -449,13 +464,15 @@ function _FIX_1_20_6 {
 	   [ "$RKE2_VERSION" == "v1.27.7+rke2r2" ] ||\
 	   [ "$RKE2_VERSION" == "v1.27.10+rke2r1" ] ||\
 	   [ "$RKE2_VERSION" == "v1.27.12+rke2r1" ] ||\
+	   [ "$RKE2_VERSION" == "v1.27.14+rke2r1" ] ||\
 	   [ "$RKE2_VERSION" == "v1.28.3+rke2r2" ] ||\
 	   [ "$RKE2_VERSION" == "v1.28.9+rke2r1" ] ||\
 	   [ "$RKE2_VERSION" == "v1.28.10+rke2r1" ] ||\
 	   [ "$RKE2_VERSION" == "v1.21.11+rke2r1" ] ; then
                 # remove system-default registry
-                sudo sed -i "/^system-default-registry:.*/d" /etc/rancher/rke2/config.yaml
-                sudo sed -i "s/systemDefaultRegistry:.*/systemDefaultRegistry: \"\"/g" $RKECLUSTERDIR/manifests/*.yaml
+		# now we need this set on registry.rancher.com for "prime"
+                #sudo sed -i "/^system-default-registry:.*/d" /etc/rancher/rke2/config.yaml
+		sudo sed -i "s/systemDefaultRegistry:.*/systemDefaultRegistry: \"\"/g" $RKECLUSTERDIR/manifests/*.yaml
                 # remove job image as with rewrite this comes from the registry
                 sudo sed -i "/jobImage:/d" $RKECLUSTERDIR/manifests/*.yaml
                 # remove registry and stage because this is now on the registries.yaml rewrite
@@ -508,6 +525,7 @@ function _FIX_1_20_11 {
 	   echo $RKE2_VERSION |grep "v1.27.7" ||\
 	   echo $RKE2_VERSION |grep "v1.27.10" ||\
 	   echo $RKE2_VERSION |grep "v1.27.12" ||\
+	   echo $RKE2_VERSION |grep "v1.27.14" ||\
 	   echo $RKE2_VERSION |grep "v1.28.3" ||\
 	   echo $RKE2_VERSION |grep "v1.28.9" ||\
 	   echo $RKE2_VERSION |grep "v1.28.10" ||\
@@ -569,6 +587,7 @@ function _CILIUM_NOT_CANAL {
 	     echo $RKE2_VERSION |grep "v1.27.7" ||\
 	     echo $RKE2_VERSION |grep "v1.27.10" ||\
 	     echo $RKE2_VERSION |grep "v1.27.12" ||\
+	     echo $RKE2_VERSION |grep "v1.27.14" ||\
 	     echo $RKE2_VERSION |grep "v1.28.3" ||\
 	     echo $RKE2_VERSION |grep "v1.28.9" ||\
 	     echo $RKE2_VERSION |grep "v1.28.10" ||\

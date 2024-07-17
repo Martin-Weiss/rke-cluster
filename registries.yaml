@@ -65,6 +65,12 @@ mirrors:
       - "https://%%REGISTRY2%%/v2/"
     rewrite:
       "(.*)": "%%STAGE%%/registry.k8s.io/$1"
+  dp.apps.rancher.io:
+    endpoint:
+      - "https://%%REGISTRY%%/v2/"
+      - "https://%%REGISTRY2%%/v2/"
+    rewrite:
+      "(.*)": "%%STAGE%%/dp.apps.rancher.io/$1"
 
 configs:
   "%%REGISTRY%%":
