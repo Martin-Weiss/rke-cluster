@@ -206,14 +206,19 @@ EOF'
 	# copy default rke2-pss.yaml to target
 	sudo cp -a $RKECLUSTERDIR/rke2-pss.yaml /etc/rancher/rke2/rke2-pss.yaml
 	fi
-	# different in 1.25/1.26/1.27/1.28
-	if echo $RKE2_VERSION |grep "v1.25" || echo $RKE2_VERSION |grep "v1.26" || echo $RKE2_VERSION |grep "v1.27" || echo $RKE2_VERSION |grep "v1.28" ; then
+	# different in 1.25/1.26/1.27
+	if echo $RKE2_VERSION |grep "v1.25" || echo $RKE2_VERSION |grep "v1.26" || echo $RKE2_VERSION |grep "v1.27" ; then
 		# change CIS profile to 1.23
 		sudo sed -i 's/profile:.*/profile: cis-1.23/g' /etc/rancher/rke2/config.yaml
 		# remove admission-control-config-file as RKE2 handles this automatically, now
 		sudo sed -i '/admission-control-config-file/d' /etc/rancher/rke2/config.yaml
 		# change api to v1 in /etc/rancher/rke2/rke2-pss.yaml if exists (1.24 needs v1beta1 and 1.25 and newer needs v1"
 		sudo sed -i 's#pod-security.admission.config.k8s.io/v1beta1#pod-security.admission.config.k8s.io/v1#g' /etc/rancher/rke2/rke2-pss.yaml
+	fi
+        # different in 1.28 / 1.29 / 1.30 / 1.31
+        if echo $RKE2_VERSION |grep "v1.28" || echo $RKE2_VERSION |grep "v1.29" || echo $RKE2_VERSION |grep "v1.30" || echo $RKE2_VERSION |grep "v1.31" ; then
+                # change CIS profile to cis
+                sudo sed -i 's/profile:.*/profile: cis/g' /etc/rancher/rke2/config.yaml
 	fi
 }
 
@@ -468,6 +473,9 @@ function _FIX_1_20_6 {
 	   [ "$RKE2_VERSION" == "v1.28.3+rke2r2" ] ||\
 	   [ "$RKE2_VERSION" == "v1.28.9+rke2r1" ] ||\
 	   [ "$RKE2_VERSION" == "v1.28.10+rke2r1" ] ||\
+	   [ "$RKE2_VERSION" == "v1.28.13+rke2r1" ] ||\
+	   [ "$RKE2_VERSION" == "v1.29.8+rke2r1" ] ||\
+	   [ "$RKE2_VERSION" == "v1.30.4+rke2r1" ] ||\
 	   [ "$RKE2_VERSION" == "v1.21.11+rke2r1" ] ; then
                 # remove system-default registry
 		# now we need this set on registry.rancher.com for "prime"
@@ -529,6 +537,9 @@ function _FIX_1_20_11 {
 	   echo $RKE2_VERSION |grep "v1.28.3" ||\
 	   echo $RKE2_VERSION |grep "v1.28.9" ||\
 	   echo $RKE2_VERSION |grep "v1.28.10" ||\
+	   echo $RKE2_VERSION |grep "v1.28.13" ||\
+	   echo $RKE2_VERSION |grep "v1.29.8" ||\
+	   echo $RKE2_VERSION |grep "v1.30.4" ||\
 	   echo $RKE2_VERSION |grep "v1.21.11" ; then
                 echo "remove rke2-kube-proxy-config.yaml as the deployment method for kube proxy changed"
 		sudo rm $RKECLUSTERDIR/manifests/rke2-kube-proxy-config.yaml
@@ -591,6 +602,9 @@ function _CILIUM_NOT_CANAL {
 	     echo $RKE2_VERSION |grep "v1.28.3" ||\
 	     echo $RKE2_VERSION |grep "v1.28.9" ||\
 	     echo $RKE2_VERSION |grep "v1.28.10" ||\
+	     echo $RKE2_VERSION |grep "v1.28.13" ||\
+	     echo $RKE2_VERSION |grep "v1.29.8" ||\
+	     echo $RKE2_VERSION |grep "v1.30.4" ||\
 	     echo $RKE2_VERSION |grep "v1.21.11" &&\
    	     [ -f $RKECLUSTERDIR/manifests/rke2-cilium.yaml ]; then
 		echo "Cilium Yaml exists and cluster version is v1.20.7-v1.20.15 or v1.21.2-v1.28.10"
