@@ -8,23 +8,25 @@
 #RKE2_VERSIONS="v1.27.12+rke2r1"
 #RKE2_VERSIONS="v1.28.9+rke2r1 v1.28.10+rke2r1"
 #RKE2_VERSIONS="v1.27.14+rke2r1"
-RKE2_VERSIONS="v1.28.13+rke2r1 v1.29.8+rke2r1 v1.30.4+rke2r1"
+#RKE2_VERSIONS="v1.28.13+rke2r1 v1.29.8+rke2r1 v1.30.4+rke2r1"
+RKE2_VERSIONS="v1.31.4+rke2r1"
 
 for RKE2_VERSION in $RKE2_VERSIONS; do
 	mkdir -p $RKE2_VERSION
 	if [ ! -f "$RKE2_VERSION/rke2.linux-amd64.tar.gz" ]; then
-		wget "https://github.com/rancher/rke2/releases/download/$RKE2_VERSION/rke2.linux-amd64.tar.gz" -O $RKE2_VERSION/rke2.linux-amd64.tar.gz
+		curl -L "https://github.com/rancher/rke2/releases/download/$RKE2_VERSION/rke2.linux-amd64.tar.gz" -o $RKE2_VERSION/rke2.linux-amd64.tar.gz
 	fi
 	echo "rke2.linux-amd64.tar.gz" > $RKE2_VERSION/.gitignore
         if [ ! -f "$RKE2_VERSION/kubectl" ] ; then
                 K8S_VERSION=$(echo $RKE2_VERSION|cut -f1 -d "+")
-                wget "https://storage.googleapis.com/kubernetes-release/release/$K8S_VERSION/bin/linux/amd64/kubectl" -O $RKE2_VERSION/kubectl
+                curl -L "https://dl.k8s.io/release/$K8S_VERSION/bin/linux/amd64/kubectl" -o $RKE2_VERSION/kubectl
+                #curl -L "https://storage.googleapis.com/kubernetes-release/release/$K8S_VERSION/bin/linux/amd64/kubectl" -o $RKE2_VERSION/kubectl
         fi
         echo "kubectl" >> $RKE2_VERSION/.gitignore
 done
 
 # Logcolector
-wget -N "https://raw.githubusercontent.com/rancherlabs/support-tools/master/collection/rancher/v2.x/logs-collector/rancher2_logs_collector.sh"
+curl -L "https://raw.githubusercontent.com/rancherlabs/support-tools/master/collection/rancher/v2.x/logs-collector/rancher2_logs_collector.sh" -o rancher2_logs_collector.sh
 chmod +x rancher2_logs_collector.sh
 
 # 1.20.4 and 1.20.5 workaround for pulling images not working
@@ -33,7 +35,7 @@ chmod +x rancher2_logs_collector.sh
 #for RKE2_VERSION in $RKE2_VERSIONS; do
 #	mkdir -p $RKE2_VERSION
 #	if [ ! -f "$RKE2_VERSION/rke2-images.linux-amd64.tar.zst" ]; then
-#		wget -N "https://github.com/rancher/rke2/releases/download/$RKE2_VERSION/rke2-images.linux-amd64.tar.zst" -O $RKE2_VERSION/rke2-images.linux-amd64.tar.zst
+#		curl "https://github.com/rancher/rke2/releases/download/$RKE2_VERSION/rke2-images.linux-amd64.tar.zst" -o $RKE2_VERSION/rke2-images.linux-amd64.tar.zst
 #	fi
 #	echo "rke2.linux-amd64.tar.gz" > $RKE2_VERSION/.gitignore
 #        echo "rke2-images.linux-amd64.tar.zst" >> $RKE2_VERSION/.gitignore

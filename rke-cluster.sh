@@ -476,6 +476,7 @@ function _FIX_1_20_6 {
 	   [ "$RKE2_VERSION" == "v1.28.13+rke2r1" ] ||\
 	   [ "$RKE2_VERSION" == "v1.29.8+rke2r1" ] ||\
 	   [ "$RKE2_VERSION" == "v1.30.4+rke2r1" ] ||\
+	   [ "$RKE2_VERSION" == "v1.31.4+rke2r1" ] ||\
 	   [ "$RKE2_VERSION" == "v1.21.11+rke2r1" ] ; then
                 # remove system-default registry
 		# now we need this set on registry.rancher.com for "prime"
@@ -540,6 +541,7 @@ function _FIX_1_20_11 {
 	   echo $RKE2_VERSION |grep "v1.28.13" ||\
 	   echo $RKE2_VERSION |grep "v1.29.8" ||\
 	   echo $RKE2_VERSION |grep "v1.30.4" ||\
+	   echo $RKE2_VERSION |grep "v1.31.4" ||\
 	   echo $RKE2_VERSION |grep "v1.21.11" ; then
                 echo "remove rke2-kube-proxy-config.yaml as the deployment method for kube proxy changed"
 		sudo rm $RKECLUSTERDIR/manifests/rke2-kube-proxy-config.yaml
@@ -605,6 +607,7 @@ function _CILIUM_NOT_CANAL {
 	     echo $RKE2_VERSION |grep "v1.28.13" ||\
 	     echo $RKE2_VERSION |grep "v1.29.8" ||\
 	     echo $RKE2_VERSION |grep "v1.30.4" ||\
+	     echo $RKE2_VERSION |grep "v1.31.4" ||\
 	     echo $RKE2_VERSION |grep "v1.21.11" &&\
    	     [ -f $RKECLUSTERDIR/manifests/rke2-cilium.yaml ]; then
 		echo "Cilium Yaml exists and cluster version is v1.20.7-v1.20.15 or v1.21.2-v1.28.10"
