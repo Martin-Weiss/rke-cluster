@@ -215,8 +215,8 @@ EOF'
 		# change api to v1 in /etc/rancher/rke2/rke2-pss.yaml if exists (1.24 needs v1beta1 and 1.25 and newer needs v1"
 		sudo sed -i 's#pod-security.admission.config.k8s.io/v1beta1#pod-security.admission.config.k8s.io/v1#g' /etc/rancher/rke2/rke2-pss.yaml
 	fi
-        # different in 1.28 / 1.29 / 1.30 / 1.31
-        if echo $RKE2_VERSION |grep "v1.28" || echo $RKE2_VERSION |grep "v1.29" || echo $RKE2_VERSION |grep "v1.30" || echo $RKE2_VERSION |grep "v1.31" ; then
+        # different in 1.28 / 1.29 / 1.30 / 1.31 / 1.32 / 1.33 / 1.34
+        if echo $RKE2_VERSION |grep "v1.28" || echo $RKE2_VERSION |grep "v1.29" || echo $RKE2_VERSION |grep "v1.30" || echo $RKE2_VERSION |grep "v1.31" || echo $RKE2_VERSION |grep "v1.32" || echo $RKE2_VERSION |grep "v1.33" || echo $RKE2_VERSION |grep "v1.34"; then
                 # change CIS profile to cis
                 sudo sed -i 's/profile:.*/profile: cis/g' /etc/rancher/rke2/config.yaml
 	fi
@@ -258,7 +258,8 @@ function _PREPARE_RKE2_CLOUD_CONFIG {
 		echo "Create vsphere.conf as it exists"
 		sudo cp -a $RKECLUSTERDIR/vsphere.conf /etc/rancher/rke2/vsphere.conf
 	else
-		echo "no vsphere.conf so not creating it"
+		echo "no vsphere.conf so not creating it and deleting the one if it exists"
+		sudo rm /etc/rancher/rke2/vsphere.conf
 	fi
 }
 
@@ -477,11 +478,18 @@ function _FIX_1_20_6 {
 	   [ "$RKE2_VERSION" == "v1.29.8+rke2r1" ] ||\
 	   [ "$RKE2_VERSION" == "v1.30.4+rke2r1" ] ||\
 	   [ "$RKE2_VERSION" == "v1.31.4+rke2r1" ] ||\
+	   [ "$RKE2_VERSION" == "v1.32.3+rke2r1" ] ||\
+	   [ "$RKE2_VERSION" == "v1.32.4+rke2r1" ] ||\
+	   [ "$RKE2_VERSION" == "v1.32.5+rke2r1" ] ||\
+	   [ "$RKE2_VERSION" == "v1.33.9+rke2r1" ] ||\
+	   [ "$RKE2_VERSION" == "v1.34.4+rke2r1" ] ||\
+	   [ "$RKE2_VERSION" == "v1.34.5+rke2r1" ] ||\
 	   [ "$RKE2_VERSION" == "v1.21.11+rke2r1" ] ; then
                 # remove system-default registry
 		# now we need this set on registry.rancher.com for "prime"
                 #sudo sed -i "/^system-default-registry:.*/d" /etc/rancher/rke2/config.yaml
 		sudo sed -i "s/systemDefaultRegistry:.*/systemDefaultRegistry: \"\"/g" $RKECLUSTERDIR/manifests/*.yaml
+		sudo sed -i "s/systemDefaultRegistry:.*/systemDefaultRegistry: \"registry.rancher.com\"/g" $RKECLUSTERDIR/manifests/*.yaml
                 # remove job image as with rewrite this comes from the registry
                 sudo sed -i "/jobImage:/d" $RKECLUSTERDIR/manifests/*.yaml
                 # remove registry and stage because this is now on the registries.yaml rewrite
@@ -542,6 +550,12 @@ function _FIX_1_20_11 {
 	   echo $RKE2_VERSION |grep "v1.29.8" ||\
 	   echo $RKE2_VERSION |grep "v1.30.4" ||\
 	   echo $RKE2_VERSION |grep "v1.31.4" ||\
+	   echo $RKE2_VERSION |grep "v1.32.3" ||\
+	   echo $RKE2_VERSION |grep "v1.32.4" ||\
+	   echo $RKE2_VERSION |grep "v1.32.5" ||\
+	   echo $RKE2_VERSION |grep "v1.33.9" ||\
+	   echo $RKE2_VERSION |grep "v1.34.4" ||\
+	   echo $RKE2_VERSION |grep "v1.34.5" ||\
 	   echo $RKE2_VERSION |grep "v1.21.11" ; then
                 echo "remove rke2-kube-proxy-config.yaml as the deployment method for kube proxy changed"
 		sudo rm $RKECLUSTERDIR/manifests/rke2-kube-proxy-config.yaml
@@ -608,16 +622,22 @@ function _CILIUM_NOT_CANAL {
 	     echo $RKE2_VERSION |grep "v1.29.8" ||\
 	     echo $RKE2_VERSION |grep "v1.30.4" ||\
 	     echo $RKE2_VERSION |grep "v1.31.4" ||\
+	     echo $RKE2_VERSION |grep "v1.32.3" ||\
+	     echo $RKE2_VERSION |grep "v1.32.4" ||\
+	     echo $RKE2_VERSION |grep "v1.32.5" ||\
+	     echo $RKE2_VERSION |grep "v1.33.9" ||\
+	     echo $RKE2_VERSION |grep "v1.34.4" ||\
+	     echo $RKE2_VERSION |grep "v1.34.5" ||\
 	     echo $RKE2_VERSION |grep "v1.21.11" &&\
    	     [ -f $RKECLUSTERDIR/manifests/rke2-cilium.yaml ]; then
-		echo "Cilium Yaml exists and cluster version is v1.20.7-v1.20.15 or v1.21.2-v1.28.10"
+		echo "Cilium Yaml exists and cluster version is v1.20.7-v1.20.15 or v1.21.2-v1.28.10 or newer"
 		sudo sed -i "/^cni:/d" /etc/rancher/rke2/config.yaml
 		sudo bash -c 'echo "cni: cilium" >>/etc/rancher/rke2/config.yaml'
 		sudo rm $RKECLUSTERDIR/manifests/rke2-canal*.yaml /var/lib/rancher/rke2/server/manifests/rke2-canal*.yaml
 		# do not need this file in 1.20.7 or newer, anymore
 		sudo rm $RKECLUSTERDIR/manifests/rke2-cilium.yaml
 	else
-		echo "Cilium Yaml does not exist or cluster version is not v1.20.7-v1.20.15 or v1.21.2-v1.28.10"
+		echo "Cilium Yaml does not exist or cluster version is not v1.20.7-v1.20.15 or v1.21.2-v1.28.10 or newer"
 		sudo rm $RKECLUSTERDIR/manifests/rke2-cilium*.yaml*
 	fi
 }
