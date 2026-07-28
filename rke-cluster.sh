@@ -216,7 +216,7 @@ EOF'
 		sudo sed -i 's#pod-security.admission.config.k8s.io/v1beta1#pod-security.admission.config.k8s.io/v1#g' /etc/rancher/rke2/rke2-pss.yaml
 	fi
         # different in 1.28 / 1.29 / 1.30 / 1.31 / 1.32 / 1.33 / 1.34 / 1.35
-        if echo $RKE2_VERSION |grep "v1.28" || echo $RKE2_VERSION |grep "v1.29" || echo $RKE2_VERSION |grep "v1.30" || echo $RKE2_VERSION |grep "v1.31" || echo $RKE2_VERSION |grep "v1.32" || echo $RKE2_VERSION |grep "v1.33" || echo $RKE2_VERSION |grep "v1.34" | echo $RKE2_VERSION |grep "v1.35" ; then
+        if echo $RKE2_VERSION |grep "v1.28" || echo $RKE2_VERSION |grep "v1.29" || echo $RKE2_VERSION |grep "v1.30" || echo $RKE2_VERSION |grep "v1.31" || echo $RKE2_VERSION |grep "v1.32" || echo $RKE2_VERSION |grep "v1.33" || echo $RKE2_VERSION |grep "v1.34" || echo $RKE2_VERSION |grep "v1.35" ; then
                 # change CIS profile to cis
                 sudo sed -i 's/profile:.*/profile: cis/g' /etc/rancher/rke2/config.yaml
 	fi
