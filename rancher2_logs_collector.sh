@@ -3,8 +3,7 @@
 # https://rancher.com/support-maintenance-terms#rancher-support-matrix
 
 # Included namespaces
-SYSTEM_NAMESPACES=(kube-system kube-public cattle-system cattle-alerting cattle-logging cattle-pipeline cattle-provisioning-capi-system cattle-resources-system ingress-nginx cattle-prometheus istio-system longhorn-system cattle-global-data fleet-system fleet-default rancher-operator-system cattle-monitoring-system cattle-logging-system cattle-fleet-system cattle-fleet-local-system tigera-operator calico-system suse-observability rancher-turtles-system capi-system rke2-bootstrap-system rke2-control-plane-system)
-APP_NAMESPACES=(kube-system cattle-system cattle-fleet-system cattle-fleet-local-system cattle-provisioning-capi-system cattle-resources-system cattle-ui-plugin-system)
+SYSTEM_NAMESPACES=(kube-system kube-public cattle-system cattle-alerting cattle-logging cattle-pipeline cattle-provisioning-capi-system cattle-resources-system ingress-nginx cattle-prometheus cattle-ui-plugin-system istio-system longhorn-system cattle-global-data fleet-system fleet-default rancher-operator-system cattle-monitoring-system cattle-logging-system cattle-fleet-system cattle-fleet-local-system tigera-operator calico-system suse-observability cattle-turtles-system cattle-capi-system rke2-bootstrap-system rke2-control-plane-system cattle-ai-agent-system)
 
 # Included container logs
 KUBE_CONTAINERS=(etcd etcd-rolling-snapshots kube-apiserver kube-controller-manager kubelet kube-scheduler kube-proxy nginx-proxy)
@@ -16,8 +15,8 @@ JOURNALD_LOGS=(docker k3s rke2-agent rke2-server containerd cloud-init systemd-n
 VAR_LOG_FILES=(syslog messages kern docker cloud-init audit/ dmesg)
 
 # Included Kubernetes object types
-K8S_OBJECTS=(clusterroles clusterrolebindings crds mutatingwebhookconfigurations namespaces nodes pv validatingwebhookconfigurations volumeattachments)
-K8S_OBJECTS_NAMESPACED=(apiservices configmaps cronjobs deployments daemonsets endpoints events helmcharts hpa ingress jobs leases networkpolicies pods pvc replicasets roles rolebindings statefulsets)
+K8S_OBJECTS=(clusterroles clusterrolebindings crds mutatingwebhookconfigurations namespaces nodes pv validatingwebhookconfigurations volumeattachments globalnetworkpolicies.projectcalico.org)
+K8S_OBJECTS_NAMESPACED=(apiservices configmaps cronjobs deployments daemonsets endpoints events helmcharts hpa ingress jobs leases networkpolicies networkpolicies.projectcalico.org pods pvc replicasets roles rolebindings statefulsets)
 
 # Default days log files to include
 DEFAULT_LOG_DAYS=7
@@ -121,6 +120,10 @@ sherlock() {
             else
               FOUND+="k3s "
           fi
+      elif [[ -f "/var/run/secrets/kubernetes.io/serviceaccount/token" && $(command -v kubectl) ]]
+        then
+          DISTRO=pod
+          echo "pod" | tee -a "${TMPDIR}/collector-output.log"
       elif command -v docker >/dev/null 2>&1
         then
           if docker ps -a | grep kubelet >/dev/null 2>&1
@@ -212,13 +215,11 @@ system-all() {
       cp -p /run/systemd/resolve/resolv.conf "${TMPDIR}/systeminfo/systemd-resolved" 2>&1
   fi
   date 2>&1 | tee -a "${TMPDIR}/systeminfo/date" "${TMPDIR}/versions" >/dev/null
-  free -h 2>&1 | tee -a "${TMPDIR}/systeminfo/memory" "${TMPDIR}/versions" >/dev/null
+  free -h 2>&1 | tee -a "${TMPDIR}/systeminfo/freeh" >/dev/null
   uptime > "${TMPDIR}/systeminfo/uptime" 2>&1
   dmesg -T > "${TMPDIR}/systeminfo/dmesg" 2>&1
-  df -h > "${TMPDIR}/systeminfo/dfh" 2>&1
-  if df -i >/dev/null 2>&1; then
-    df -i > "${TMPDIR}/systeminfo/dfi" 2>&1
-  fi
+  df -Ph > "${TMPDIR}/systeminfo/dfh" 2>&1
+  df -Pi > "${TMPDIR}/systeminfo/dfi" 2>&1
   lsmod > "${TMPDIR}/systeminfo/lsmod" 2>&1
   mount > "${TMPDIR}/systeminfo/mount" 2>&1
   ps auxfww > "${TMPDIR}/systeminfo/ps" 2>&1
@@ -258,7 +259,7 @@ system-all() {
   if command -v systemctl >/dev/null 2>&1; then
     systemctl list-unit-files > "${TMPDIR}/systeminfo/systemd-unit-files" 2>&1
   fi
-  if command -v systemd-detect-virt 2>&1; then
+  if command -v systemd-detect-virt >/dev/null 2>&1; then
     systemd-detect-virt > "${TMPDIR}/systeminfo/systemd-detect-virt" 2>&1
   fi
   if command -v service >/dev/null 2>&1; then
@@ -399,6 +400,10 @@ provisioning-crds() {
     then
       KUBECONFIG=/etc/rancher/${DISTRO}/rke2.yaml
       ctlcmd="${RKE2_DATA_DIR}/bin/kubectl --kubeconfig=$KUBECONFIG"
+      CONTROL_PLANE=1
+  elif [[ "${DISTRO}" = "pod" && $(command -v kubectl) ]]
+    then
+      ctlcmd="kubectl"
       CONTROL_PLANE=1
   fi
 
@@ -618,6 +623,7 @@ k3s-k8s() {
     KUBECONFIG=/var/lib/rancher/${DISTRO}/agent/k3scontroller.kubeconfig
     k3s kubectl --kubeconfig="$KUBECONFIG" get nodes -o wide > "${TMPDIR}/${DISTRO}/kubectl/nodes" 2>&1
     k3s kubectl --kubeconfig="$KUBECONFIG" describe nodes > "${TMPDIR}/${DISTRO}/kubectl/nodesdescribe" 2>&1
+    k3s kubectl --kubeconfig="$KUBECONFIG" get nodes -o json > "${TMPDIR}/${DISTRO}/kubectl/nodes.json" 2>&1
     k3s kubectl --kubeconfig="$KUBECONFIG" get pods -o wide --all-namespaces > "${TMPDIR}/${DISTRO}/kubectl/pods" 2>&1
     k3s kubectl --kubeconfig="$KUBECONFIG" get pods --namespace kube-system -o custom-columns=NAME:.metadata.name,IMAGE:.spec.containers[*].image >> "${TMPDIR}/versions" 2>&1
     k3s kubectl --kubeconfig="$KUBECONFIG" get pods --namespace cattle-system -o custom-columns=NAME:.metadata.name,IMAGE:.spec.containers[*].image >> "${TMPDIR}/versions" 2>&1
@@ -639,7 +645,7 @@ k3s-k8s() {
     for OBJECT in "${K8S_OBJECTS_NAMESPACED[@]}"; do
       k3s kubectl get "$OBJECT" --all-namespaces -o wide > "${TMPDIR}/${DISTRO}/kubectl/${OBJECT}" 2>&1
     done
-    for APP_NS in "${APP_NAMESPACES[@]}"; do
+    for APP_NS in "${SYSTEM_NAMESPACES[@]}"; do
       k3s kubectl get apps.catalog.cattle.io --ignore-not-found=true --namespace $APP_NS 2>&1 | tee -a "${TMPDIR}/${DISTRO}/kubectl/apps" "${TMPDIR}/versions" >/dev/null
     done
 
@@ -691,6 +697,7 @@ rke2-k8s() {
     KUBECONFIG="${RKE2_DATA_DIR}/agent/kubeproxy.kubeconfig"
     "${RKE2_DATA_DIR}"/bin/kubectl --kubeconfig="$KUBECONFIG" get nodes -o wide > "${TMPDIR}/${DISTRO}/kubectl/nodes" 2>&1
     "${RKE2_DATA_DIR}"/bin/kubectl --kubeconfig="$KUBECONFIG" describe nodes > "${TMPDIR}/${DISTRO}/kubectl/nodesdescribe" 2>&1
+    "${RKE2_DATA_DIR}"/bin/kubectl --kubeconfig="$KUBECONFIG" get nodes -o json > "${TMPDIR}/${DISTRO}/kubectl/nodes.json" 2>&1
     "${RKE2_DATA_DIR}"/bin/kubectl --kubeconfig="$KUBECONFIG" version > "${TMPDIR}/${DISTRO}/kubectl/version" 2>&1
     "${RKE2_DATA_DIR}"/bin/kubectl --kubeconfig="$KUBECONFIG" get svc -o wide --all-namespaces > "${TMPDIR}/${DISTRO}/kubectl/services" 2>&1
     "${RKE2_DATA_DIR}"/bin/kubectl --kubeconfig="$KUBECONFIG" api-resources > "${TMPDIR}/${DISTRO}/kubectl/api-resources" 2>&1
@@ -708,8 +715,8 @@ rke2-k8s() {
     if [ -f /etc/cni/net.d/05-cilium.conflist ]; then
       "${RKE2_DATA_DIR}"/bin/kubectl --kubeconfig="$KUBECONFIG" get CiliumNetworkPolicy -A > "${TMPDIR}/${DISTRO}/kubectl/ciliumnetworkpolicy" 2>&1
       "${RKE2_DATA_DIR}"/bin/kubectl --kubeconfig="$KUBECONFIG" get CiliumClusterwideNetworkPolicy > "${TMPDIR}/${DISTRO}/kubectl/ciliumclusterwidenetworkpolicy" 2>&1
-      "${RKE2_DATA_DIR}"/bin/kubectl --kubeconfig="$KUBECONFIG" -n kube-system exec ds/cilium -c cilium-agent -- cilium status -o json > "${TMPDIR}/${DISTRO}/kubectl/ciliumstatus.json"
-      "${RKE2_DATA_DIR}"/bin/kubectl --kubeconfig="$KUBECONFIG" -n kube-system exec ds/cilium -c cilium-agent -- cilium-dbg service list -o json > "${TMPDIR}/${DISTRO}/kubectl/ciliumdbgservicelist.json"
+      "${RKE2_DATA_DIR}"/bin/kubectl --kubeconfig="$KUBECONFIG" -n kube-system exec ds/cilium -c cilium-agent -- cilium status -o json > "${TMPDIR}/${DISTRO}/kubectl/ciliumstatus.json" 2>&1
+      "${RKE2_DATA_DIR}"/bin/kubectl --kubeconfig="$KUBECONFIG" -n kube-system exec ds/cilium -c cilium-agent -- cilium-dbg service list -o json > "${TMPDIR}/${DISTRO}/kubectl/ciliumdbgservicelist.json" 2>&1
     fi
 
     for OBJECT in "${K8S_OBJECTS[@]}"; do
@@ -718,7 +725,7 @@ rke2-k8s() {
     for OBJECT in "${K8S_OBJECTS_NAMESPACED[@]}"; do
       "${RKE2_DATA_DIR}"/bin/kubectl --kubeconfig="$KUBECONFIG" get "$OBJECT" --all-namespaces -o wide > "${TMPDIR}/${DISTRO}/kubectl/${OBJECT}" 2>&1
     done
-    for APP_NS in "${APP_NAMESPACES[@]}"; do
+    for APP_NS in "${SYSTEM_NAMESPACES[@]}"; do
       "${RKE2_DATA_DIR}"/bin/kubectl --kubeconfig="$KUBECONFIG" get apps.catalog.cattle.io --ignore-not-found=true --namespace $APP_NS 2>&1 | tee -a "${TMPDIR}/${DISTRO}/kubectl/apps" "${TMPDIR}/versions" >/dev/null
     done
 
@@ -761,6 +768,59 @@ rke2-k8s() {
 
 }
 
+pod-k8s() {
+
+  TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
+  CA_CERT=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+  if ! kubectl get --raw='/healthz' --request-timeout=5s --server="https://$KUBERNETES_SERVICE_HOST:$KUBERNETES_SERVICE_PORT" --certificate-authority=$CA_CERT --token=$TOKEN > /dev/null 2>&1; then
+    API_SERVER_OFFLINE=true
+    techo "[!] Kube-apiserver is offline, may not be able to collect any output"
+  fi
+
+  if [[ ! "${API_SERVER_OFFLINE}" ]]; then
+    techo "Collecting cluster logs"
+    mkdir -p "${TMPDIR}/${DISTRO}/kubectl/poddescribe"
+    kubectl get nodes -o wide > "${TMPDIR}/${DISTRO}/kubectl/nodes" 2>&1
+    kubectl describe nodes > "${TMPDIR}/${DISTRO}/kubectl/nodesdescribe" 2>&1
+    kubectl get nodes -o json > "${TMPDIR}/${DISTRO}/kubectl/nodes.json" 2>&1
+    kubectl version > "${TMPDIR}/${DISTRO}/kubectl/version" 2>&1
+    kubectl get svc -o wide --all-namespaces > "${TMPDIR}/${DISTRO}/kubectl/services" 2>&1
+    kubectl api-resources > "${TMPDIR}/${DISTRO}/kubectl/api-resources" 2>&1
+    kubectl get pods -o wide --all-namespaces > "${TMPDIR}/${DISTRO}/kubectl/pods" 2>&1
+    kubectl get pods --namespace kube-system -o custom-columns=NAME:.metadata.name,IMAGE:.spec.containers[*].image >> "${TMPDIR}/versions" 2>&1
+    kubectl get pods --namespace cattle-system -o custom-columns=NAME:.metadata.name,IMAGE:.spec.containers[*].image >> "${TMPDIR}/versions" 2>&1
+
+    for SYSTEM_NAMESPACE in "${SYSTEM_NAMESPACES[@]}"; do
+      kubectl describe pod -n "$SYSTEM_NAMESPACE" > "${TMPDIR}/${DISTRO}/kubectl/poddescribe/$SYSTEM_NAMESPACE" 2>&1
+    done
+
+    kubectl get CiliumNetworkPolicy -A > "${TMPDIR}/${DISTRO}/kubectl/ciliumnetworkpolicy" 2>&1
+    kubectl get CiliumClusterwideNetworkPolicy > "${TMPDIR}/${DISTRO}/kubectl/ciliumclusterwidenetworkpolicy" 2>&1
+    kubectl -n kube-system exec ds/cilium -c cilium-agent -- cilium status -o json > "${TMPDIR}/${DISTRO}/kubectl/ciliumstatus.json" 2>&1
+    kubectl -n kube-system exec ds/cilium -c cilium-agent -- cilium-dbg service list -o json > "${TMPDIR}/${DISTRO}/kubectl/ciliumdbgservicelist.json" 2>&1
+
+    for OBJECT in "${K8S_OBJECTS[@]}"; do
+      kubectl get "$OBJECT" -o wide > "${TMPDIR}/${DISTRO}/kubectl/${OBJECT}" 2>&1
+    done
+    for OBJECT in "${K8S_OBJECTS_NAMESPACED[@]}"; do
+      kubectl get "$OBJECT" --all-namespaces -o wide > "${TMPDIR}/${DISTRO}/kubectl/${OBJECT}" 2>&1
+    done
+    for APP_NS in "${SYSTEM_NAMESPACES[@]}"; do
+      kubectl get apps.catalog.cattle.io --ignore-not-found=true --namespace $APP_NS 2>&1 | tee -a "${TMPDIR}/${DISTRO}/kubectl/apps" "${TMPDIR}/versions" >/dev/null
+    done
+
+    techo "Collecting system pod logs"
+    mkdir -p "${TMPDIR}/${DISTRO}/podlogs"
+    for SYSTEM_NAMESPACE in "${SYSTEM_NAMESPACES[@]}"; do
+      for SYSTEM_POD in $(kubectl -n "$SYSTEM_NAMESPACE" get pods --no-headers -o custom-columns=NAME:.metadata.name); do
+        kubectl -n "$SYSTEM_NAMESPACE" "$KUBECTL_SINCE_FLAG" logs --all-containers "$SYSTEM_POD" > "${TMPDIR}/${DISTRO}/podlogs/${SYSTEM_NAMESPACE}-${SYSTEM_POD}" 2>&1
+        kubectl -n "$SYSTEM_NAMESPACE" logs -p --all-containers "$SYSTEM_POD" > "${TMPDIR}/${DISTRO}/podlogs/${SYSTEM_NAMESPACE}-${SYSTEM_POD}-previous" 2>&1
+      done
+    done
+  fi
+
+}
+
 kubeadm-k8s() {
 
   KUBEADM_STATIC_DIR="/etc/kubernetes/manifests/"
@@ -779,6 +839,7 @@ kubeadm-k8s() {
   mkdir -p "${TMPDIR}/kubeadm/kubectl"
   kubectl --kubeconfig="$KUBECONFIG" get nodes -o wide > "${TMPDIR}/kubeadm/kubectl/nodes" 2>&1
   kubectl --kubeconfig="$KUBECONFIG" describe nodes > "${TMPDIR}/kubeadm/kubectl/nodesdescribe" 2>&1
+  kubectl --kubeconfig="$KUBECONFIG" get nodes -o json > "${TMPDIR}/kubeadm/kubectl/nodes.json" 2>&1
   kubectl --kubeconfig="$KUBECONFIG" version > "${TMPDIR}/kubeadm/kubectl/version" 2>&1
   kubectl --kubeconfig="$KUBECONFIG" get pods -o wide --all-namespaces > "${TMPDIR}/kubeadm/kubectl/pods" 2>&1
   kubectl --kubeconfig="$KUBECONFIG" get pods --namespace kube-system -o custom-columns=NAME:.metadata.name,IMAGE:.spec.containers[*].image >> "${TMPDIR}/versions" 2>&1
@@ -862,6 +923,11 @@ var-log() {
 
 journald-log() {
 
+  if [ -n "${START_DAY}" ]
+    then
+      DEFAULT_LOG_DAYS="$START_DAY"
+  fi
+
   JOURNALCTL_CMD=(journalctl)
   [ -n "${SINCE_FLAG[*]}" ] && JOURNALCTL_CMD+=("${SINCE_FLAG[@]}")
   [ -n "${UNTIL_FLAG[*]}" ] && JOURNALCTL_CMD+=("${UNTIL_FLAG[@]}")
@@ -870,10 +936,85 @@ journald-log() {
   mkdir -p "${TMPDIR}/journald"
   for JOURNALD_LOG in "${JOURNALD_LOGS[@]}"; do
     if grep "$JOURNALD_LOG.service" "${TMPDIR}/systeminfo/systemd-unit-files" > /dev/null 2>&1; then
-      "${JOURNALCTL_CMD[@]}" --unit="$JOURNALD_LOG" > "${TMPDIR}/journald/$JOURNALD_LOG"
+      "${JOURNALCTL_CMD[@]}" --unit="$JOURNALD_LOG" --since "${DEFAULT_LOG_DAYS} days ago" > "${TMPDIR}/journald/$JOURNALD_LOG"
     fi
   done
 
+}
+
+summary() {
+  SUMMARY="${TMPDIR}/summary.txt"
+
+  {
+    echo "Rancher 2.x Logs Collector Summary"
+    echo "=================================="
+    echo
+    echo "Generated: $(date)"
+    echo "Hostname:  $(hostname 2>/dev/null)"
+    echo "Kernel:    $(uname -r 2>/dev/null)"
+    echo "Distro:    ${DISTRO:-unknown}"
+    echo "Init:      ${INIT:-unknown}"
+    echo "Obfuscate: ${OBFUSCATE:+enabled}"
+    [ -z "${OBFUSCATE}" ] && echo "Obfuscate: disabled"
+    echo
+
+    echo "OS"
+    echo "--"
+    [ -f /etc/os-release ] && grep -E '^(PRETTY_NAME|VERSION_ID)=' /etc/os-release
+    echo
+
+    echo "System"
+    echo "------"
+    [ -f "${TMPDIR}/systeminfo/uptime" ] && cat "${TMPDIR}/systeminfo/uptime"
+    [ -f "${TMPDIR}/systeminfo/freeh" ] && cat "${TMPDIR}/systeminfo/freeh"
+    echo
+    echo "Disk usage >= 80%:"
+    [ -f "${TMPDIR}/systeminfo/dfh" ] && cat "${TMPDIR}/systeminfo/dfh" | awk 'NR==1 || int($5) >= 80 {print}'
+    echo
+    echo "Inode usage >= 80%:"
+    [ -f "${TMPDIR}/systeminfo/dfi" ] && cat "${TMPDIR}/systeminfo/dfi" | awk 'NR==1 || int($5) >= 80 {print}'
+    echo
+
+    echo "Versions"
+    echo "--------"
+    [ -f "${TMPDIR}/versions" ] && cat "${TMPDIR}/versions"
+    echo
+
+    echo "Kubernetes Nodes"
+    echo "----------------"
+    find "${TMPDIR}" -path "*/kubectl/nodes" -type f -exec sh -c 'echo "--- $1"; cat "$1"' _ {} \;
+    echo
+
+    echo "Kubernetes Version"
+    echo "------------------"
+    find "${TMPDIR}" -path "*/kubectl/version" -type f -exec sh -c 'echo "--- $1"; cat "$1"' _ {} \;
+    echo
+
+    echo "Rancher Pods"
+    echo "------------"
+    find "${TMPDIR}" -path "*/kubectl/pods" -type f -exec sh -c 'echo "--- $1"; grep -E "cattle-system|rancher" "$1" || true' _ {} \;
+    echo
+
+    echo "Fleet Pods"
+    echo "----------"
+    find "${TMPDIR}" -path "*/kubectl/pods" -type f -exec sh -c 'echo "--- $1"; grep -E "cattle-fleet-system|cattle-fleet-local-system|fleet-system|fleet-default" "$1" || true' _ {} \;
+    echo
+
+    echo "Pods Not Running"
+    echo "--------------------"
+    find "${TMPDIR}" -path "*/kubectl/pods" -type f -exec sh -c 'echo "--- $1"; awk "NR==1 || (\$4 != \"Running\" && \$4 != \"Completed\" && \$4 != \"Succeeded\")" "$1"' _ {} \;
+    echo
+
+    echo "Recent Warning Events"
+    echo "---------------------"
+    find "${TMPDIR}" -path "*/kubectl/events" -type f -exec sh -c 'echo "--- $1"; grep -i "Warning" "$1" | tail -25 || true' _ {} \;
+    echo
+
+    echo "Collector Contents"
+    echo "------------------"
+    find "${TMPDIR}" -maxdepth 2 -type f 2>/dev/null | sed "s#${TMPDIR}/##" | sort
+
+  } > "${SUMMARY}" 2>&1
 }
 
 rke-certs() {
@@ -1352,15 +1493,17 @@ EOF
 
 cleanup() {
 
-  techo "Removing $TMPDIR_BASE"
   rm -r -f "$TMPDIR_BASE" > /dev/null 2>&1
+  if [ "$CHROOTED_DEBUG_POD" = "true" ]; then
+    rm /tmp/$(basename "$0")
+  fi
 
 }
 
 help() {
 
   echo "Rancher 2.x logs-collector
-  Usage: rancher2_logs_collector.sh [ -d <directory> -s <days> -r <k8s distribution> -p -f ]
+  Usage: rancher2_logs_collector.sh [ -d <directory> -s <days> -r <k8s distribution> -p -f -D ]
 
   All flags are optional
 
@@ -1373,7 +1516,8 @@ help() {
   -r    Override k8s distribution if not automatically detected (rke|k3s|rke2|kubeadm)
   -p    When supplied runs with the default nice/ionice priorities, otherwise use the lowest priorities
   -f    Force log collection if the minimum space isn't available
-  -o    Obfuscate IP addresses"
+  -o    Obfuscate IP addresses
+  -D    Run script via chroot /host (for use with kubectl debug node)"
 
 }
 
@@ -1397,7 +1541,7 @@ if [[ $EUID -ne 0 ]] && [[ "$DEV" == "" ]]
     exit 1
 fi
 
-while getopts "c:d:s:e:S:E:r:fpoh" opt; do
+while getopts "c:d:s:e:S:E:r:fpohD" opt; do
   case $opt in
     c)
       FLAG_DATA_DIR="$OPTARG"
@@ -1437,6 +1581,9 @@ while getopts "c:d:s:e:S:E:r:fpoh" opt; do
     o)
       OBFUSCATE=true
       ;;
+    D)
+      DEBUG_POD=true
+      ;;
     h)
       help && exit 0
       ;;
@@ -1448,6 +1595,26 @@ while getopts "c:d:s:e:S:E:r:fpoh" opt; do
       help && exit 0
   esac
 done
+
+if [ "$DEBUG_POD" = "true" ]; then
+  if [ ! -d "/host" ]; then
+    techo "Error: /host directory not found. This flag is intended for use with 'kubectl debug node'."
+    exit 1
+  fi
+  cp -u "$0" "/host/tmp/$(basename "$0")"
+  ARGS=()
+  for arg in "$@"; do
+    if [ "$arg" != "-D" ]; then
+      ARGS+=("$arg")
+    fi
+  done
+  techo "Re-executing script via chroot /host..."
+  export CHROOTED_DEBUG_POD=true
+  exec chroot /host bash "/tmp/$(basename "$0")" "${ARGS[@]}" || {
+    techo "[!] Failed to enter chroot at /host. Check mounts." >&2
+    exit 1
+  }
+fi
 
 if [ -n "$START_DAY" ] && [ -n "$END_DAY" ] && [ "$END_DAY" -ge "$START_DAY" ]
   then
@@ -1472,49 +1639,46 @@ if [ -n "$DISK_FULL" ]
 fi
 
 sherlock
-system-all
-networking
+if [ ! "$DISTRO" = "pod" ]; then
+  system-all
+  networking
+  var-log
+  if [ "$INIT" = "systemd" ]; then
+      journald-log
+  fi
 
-if [ "$OSRELEASE" = "rhel" ] || [ "$OSRELEASE" = "centos" ]; then
-  system-rhel
-elif [ "$OSRELEASE" = "ubuntu" ]; then
-  system-ubuntu
+  case "$OSRELEASE" in
+    rhel|centos)
+      system-rhel
+      ;;
+    ubuntu)
+      system-ubuntu
+      ;;
+    sles)
+      system-sles
+      ;;
+    sle-micro)
+      system-sles
+      ;;
+    opensuse-leap)
+      system-sles
+      ;;
+    *)
+      echo "[!] Unsupported OS: $OSRELEASE"
+      ;;
+  esac
 fi
 
-if [ "$OSRELEASE" = "sles" ]; then
-    system-sles
-fi
+case "$DISTRO" in
+  rke2|k3s|rke) actions="logs k8s certs etcd" ;;
+  kubeadm)      actions="k8s certs etcd" ;;
+  pod)          actions="k8s" ;;
+  *)            echo "[!] Unknown distro: may not be able to collect any Kubernetes output"; return 1 ;;
+esac
 
-if [ "$DISTRO" = "rke" ]; then
-    rke-logs
-    rke-k8s
-    rke-certs
-    rke-etcd
-elif [ "$DISTRO" = "k3s" ]; then
-    k3s-logs
-    k3s-k8s
-    k3s-certs
-    k3s-etcd
-elif [ "$DISTRO" = "rke2" ]; then
-    rke2-logs
-    rke2-k8s
-    rke2-certs
-    rke2-etcd
-elif [ "$DISTRO" = "kubeadm" ]; then
-    kubeadm-k8s
-    kubeadm-certs
-    kubeadm-etcd
-fi
-
-var-log
-
-if [ "$INIT" = "systemd" ]; then
-    journald-log
-fi
-
-if [ "$OBFUSCATE" ]; then
-    obfuscate
-fi
+for action in $actions; do
+  "${DISTRO}-${action}"
+done
 
 if [ ! "$API_SERVER_OFFLINE" ]; then
     provisioning-crds
@@ -1522,6 +1686,30 @@ if [ ! "$API_SERVER_OFFLINE" ]; then
     techo "[!] Kube-apiserver is offline, skipping provisioning CRDs"
 fi
 
+summary
+
+if [ "$OBFUSCATE" ]; then
+    obfuscate
+fi
+
 archive
 cleanup
 echo "$(timestamp): Finished"
+if [ "$DISTRO" = "pod" ]; then
+  if [ -f "/var/run/secrets/kubernetes.io/serviceaccount/namespace" ]; then
+    NS=$(cat "/var/run/secrets/kubernetes.io/serviceaccount/namespace")
+    NS_FLAG="-n $NS"
+  fi
+  echo "
+    To copy the collection from the pod:
+
+      kubectl cp ${NS_FLAG} $(hostname):${DIR_NAME}/${LOGNAME}.tar.gz ${LOGNAME}.tar.gz"
+fi
+if [ "$CHROOTED_DEBUG_POD" = "true" ]; then
+  echo "
+    To copy the collection from the debug pod:
+
+      kubectl cp \$POD_NAME:/host${DIR_NAME}/${LOGNAME}.tar.gz ${LOGNAME}.tar.gz"
+  # Sleep for 1 day to allow log collection from the pod
+  sleep 86400
+fi

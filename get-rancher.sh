@@ -24,7 +24,9 @@
 #VERSIONS="2.11.2"
 #VERSIONS="2.11.3"
 #VERSIONS="2.12.2"
-VERSIONS="2.13.3"
+#VERSIONS="2.13.3"
+#VERSIONS="2.14.2"
+VERSIONS="2.14.3"
 
 for VERSION in $VERSIONS; do
 #	wget -N https://github.com/rancher/rancher/rancher-$VERSION.tgz -P charts -o rancher-v$VERSION.tgz

@@ -215,8 +215,8 @@ EOF'
 		# change api to v1 in /etc/rancher/rke2/rke2-pss.yaml if exists (1.24 needs v1beta1 and 1.25 and newer needs v1"
 		sudo sed -i 's#pod-security.admission.config.k8s.io/v1beta1#pod-security.admission.config.k8s.io/v1#g' /etc/rancher/rke2/rke2-pss.yaml
 	fi
-        # different in 1.28 / 1.29 / 1.30 / 1.31 / 1.32 / 1.33 / 1.34
-        if echo $RKE2_VERSION |grep "v1.28" || echo $RKE2_VERSION |grep "v1.29" || echo $RKE2_VERSION |grep "v1.30" || echo $RKE2_VERSION |grep "v1.31" || echo $RKE2_VERSION |grep "v1.32" || echo $RKE2_VERSION |grep "v1.33" || echo $RKE2_VERSION |grep "v1.34"; then
+        # different in 1.28 / 1.29 / 1.30 / 1.31 / 1.32 / 1.33 / 1.34 / 1.35
+        if echo $RKE2_VERSION |grep "v1.28" || echo $RKE2_VERSION |grep "v1.29" || echo $RKE2_VERSION |grep "v1.30" || echo $RKE2_VERSION |grep "v1.31" || echo $RKE2_VERSION |grep "v1.32" || echo $RKE2_VERSION |grep "v1.33" || echo $RKE2_VERSION |grep "v1.34" | echo $RKE2_VERSION |grep "v1.35" ; then
                 # change CIS profile to cis
                 sudo sed -i 's/profile:.*/profile: cis/g' /etc/rancher/rke2/config.yaml
 	fi
@@ -368,14 +368,16 @@ function _CONFIGURE_CUSTOM_CA {
         # only required on first master as others get it via registration against 9345
         # added first experiment for rancher and cert-manager using custom CA
 	# does not work with RKE2 v1.19.*
-        if [ -f $CA_CRT ] && [ -f $CA_KEY ] && [ "$FIRSTMASTER" == "1" ] && ! echo $RKE2_VERSION |grep "v1.19." ; then
-	        sudo mkdir -p /var/lib/rancher/rke2/server/tls
-                echo 'custom CA exists and target CA does not exist - so copy custom one'
-                sudo cp -a $CA_CRT /var/lib/rancher/rke2/server/tls/server-ca.crt
-                sudo cp -a $CA_KEY /var/lib/rancher/rke2/server/tls/server-ca.key
-                sudo chmod 644 /var/lib/rancher/rke2/server/tls/server-ca.crt
-                sudo chmod 600 /var/lib/rancher/rke2/server/tls/server-ca.key
-	fi
+	#
+# not using own ca crt for rke2 anymore!
+#        if [ -f $CA_CRT ] && [ -f $CA_KEY ] && [ "$FIRSTMASTER" == "1" ] && ! echo $RKE2_VERSION |grep "v1.19." ; then
+#	        sudo mkdir -p /var/lib/rancher/rke2/server/tls
+#                echo 'custom CA exists and target CA does not exist - so copy custom one'
+#                sudo cp -a $CA_CRT /var/lib/rancher/rke2/server/tls/server-ca.crt
+#                sudo cp -a $CA_KEY /var/lib/rancher/rke2/server/tls/server-ca.key
+#                sudo chmod 644 /var/lib/rancher/rke2/server/tls/server-ca.crt
+#                sudo chmod 600 /var/lib/rancher/rke2/server/tls/server-ca.key
+#	fi
         if [ -f $CA_CRT ] && [ -f $CA_KEY ] ; then
                 echo 'base 64 encoding and cluster-issuer preparation'
                 TLS_CRT_B64=$(sudo cat $CA_CRT|base64 -w0)
@@ -484,6 +486,7 @@ function _FIX_1_20_6 {
 	   [ "$RKE2_VERSION" == "v1.33.9+rke2r1" ] ||\
 	   [ "$RKE2_VERSION" == "v1.34.4+rke2r1" ] ||\
 	   [ "$RKE2_VERSION" == "v1.34.5+rke2r1" ] ||\
+	   [ "$RKE2_VERSION" == "v1.35.6+rke2r1" ] ||\
 	   [ "$RKE2_VERSION" == "v1.21.11+rke2r1" ] ; then
                 # remove system-default registry
 		# now we need this set on registry.rancher.com for "prime"
@@ -556,6 +559,7 @@ function _FIX_1_20_11 {
 	   echo $RKE2_VERSION |grep "v1.33.9" ||\
 	   echo $RKE2_VERSION |grep "v1.34.4" ||\
 	   echo $RKE2_VERSION |grep "v1.34.5" ||\
+	   echo $RKE2_VERSION |grep "v1.35.6" ||\
 	   echo $RKE2_VERSION |grep "v1.21.11" ; then
                 echo "remove rke2-kube-proxy-config.yaml as the deployment method for kube proxy changed"
 		sudo rm $RKECLUSTERDIR/manifests/rke2-kube-proxy-config.yaml
@@ -628,6 +632,7 @@ function _CILIUM_NOT_CANAL {
 	     echo $RKE2_VERSION |grep "v1.33.9" ||\
 	     echo $RKE2_VERSION |grep "v1.34.4" ||\
 	     echo $RKE2_VERSION |grep "v1.34.5" ||\
+	     echo $RKE2_VERSION |grep "v1.35.6" ||\
 	     echo $RKE2_VERSION |grep "v1.21.11" &&\
    	     [ -f $RKECLUSTERDIR/manifests/rke2-cilium.yaml ]; then
 		echo "Cilium Yaml exists and cluster version is v1.20.7-v1.20.15 or v1.21.2-v1.28.10 or newer"
