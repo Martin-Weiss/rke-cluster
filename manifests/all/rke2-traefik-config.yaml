@@ -1,0 +1,19 @@
+apiVersion: helm.cattle.io/v1
+kind: HelmChartConfig
+metadata:
+  name: rke2-traefik
+  namespace: kube-system
+spec:
+  valuesContent: |-
+    providers:
+      kubernetesGateway:
+        enabled: true
+      kubernetesIngress:
+        ingressClass: traefik
+      kubernetesIngressNginx:
+        enabled: true
+    ingressClass:  # @schema additionalProperties: false
+      # -- Create a default IngressClass for Traefik
+      enabled: true
+      isDefaultClass: true
+      name: "traefik"

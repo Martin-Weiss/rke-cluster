@@ -172,6 +172,7 @@ etcd-s3-bucket: %%S3_BUCKET%%
 etcd-s3-region: %%S3_REGION%%
 etcd-s3-folder: etcd-snapshots
 etcd-s3-timeout: 300s
+ingress-controller: traefik
 kubelet-arg: 
   - "config=/etc/rancher/rke2/kubelet-config.yaml"
 EOF'
